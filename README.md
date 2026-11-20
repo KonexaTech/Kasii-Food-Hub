@@ -1,17 +1,12 @@
 # Kasii Food Hub
 
-Cooked meals, shisanyama and takeaway ordering.
+Independent marketplace for cooked meals, shisanyama and takeaways. Customer browsing/order/tracking, owner menus/orders and administrator approvals were adapted from the Kota Connect Neon user experience.
 
-Independent marketplace app with customer ordering, business-owner operations and administrator oversight.
+## Screens
+- `index.html` / `neon-customer.html` — customer
+- `neon-owner.html` — owner
+- `neon-admin.html` — administrator
 
-## Status
-Initial repository scaffold. No live payments, production authentication or database connection yet. Do not treat as release-ready.
+**Not live:** `app-config.js` deliberately has no Auth or API endpoint. This application must use its own Neon project and Worker; never use Kota Connect credentials or data. Server-side API, migrations and role enforcement require separate configuration and tests before controlled testing. Payments, custom requests, photographs and native push are not implemented by copying these screens.
 
-## Architecture goals
-- Customer: browse businesses by area, view photos and confirmed prices, place orders and track progress.
-- Business owner: manage products, accept and prepare orders, mark ready for collection, complete orders.
-- Administrator: approve businesses, monitor orders and maintain a commission ledger (commission disabled until configured).
-- Separate Neon PostgreSQL project; never reuse Kota Connect credentials or production data.
-- Server-enforced authentication and role-based access before live usage.
-
-Target: controlled testing by 15 December 2026.
+Run `npm run check` and `npm run build` once dependencies are installed. Controlled-test target: 15 December 2026. No database migration, merge or deployment has been performed.
