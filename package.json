@@ -6,10 +6,18 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
+ feature/reuse-kota-ordering-foundation-20261120
     "test": "node --test tests/*.test.mjs worker/test/role-policy.test.mjs",
     "check": "node --check neon-app.js && node --check worker/src/index.js && node --check worker/src/neon-api.js && npm test"
+
+    "test": "node --test",
+    "test:e2e": "playwright test"
+ main
   },
   "devDependencies": {
     "vite": "^6.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.0"
   }
 }
