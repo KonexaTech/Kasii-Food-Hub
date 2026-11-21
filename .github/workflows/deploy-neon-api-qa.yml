@@ -28,11 +28,23 @@ jobs:
       - name: Run Worker checks
         working-directory: worker
         run: npm run check
+      - name: Check deployment credentials (values are never printed)
+        id: credentials
+        shell: bash
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$NEON_DATABASE_URL" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Both required deployment credentials are available."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            [ -n "$CLOUDFLARE_API_TOKEN" ] && echo "Cloudflare token: present" || echo "Cloudflare token: MISSING"
+            [ -n "$NEON_DATABASE_URL" ] && echo "Neon database URL: present" || echo "Neon database URL: MISSING"
+          fi
       - name: Explain missing deployment credential
-        if: env.CLOUDFLARE_API_TOKEN == '' || env.NEON_DATABASE_URL == ''
-        run: echo 'Worker deployment skipped. Add CLOUDFLARE_API_TOKEN and NEON_DATABASE_URL repository secrets to enable isolated QA deployment.'
+        if: steps.credentials.outputs.ready != 'true'
+        run: echo 'Worker deployment skipped. Add the missing repository secret shown by the credential check.'
       - name: Deploy QA Worker
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.NEON_DATABASE_URL != ''
+        if: steps.credentials.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
