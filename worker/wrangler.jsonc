@@ -1,14 +1,17 @@
 {
-  "name": "kasii-food-hub-api-dev",
+  "name": "kasii-food-hub-api-qa",
   "main": "src/index.js",
-  "compatibility_date": "2026-11-17",
+  "compatibility_date": "2026-11-21",
   "compatibility_flags": [
     "nodejs_compat"
   ],
   "workers_dev": true,
+  "account_id": "74fdd987dfadfdbb7322d9fc7f705499",
   "vars": {
-    "NEON_ONLY_MODE": "false",
+    "NEON_ONLY_MODE": "true",
+    "NEON_AUTH_URL": "https://ep-calm-sea-bdye9zrl.neonauth.c-8.us-east-2.aws.neon.tech/neondb/auth",
+    "EXPECTED_NEON_HOST": "ep-calm-sea-bdye9zrl.c-8.us-east-2.aws.neon.tech",
     "ALLOWED_ORIGIN": "https://siboniisozulu-alt.github.io",
-    "ALLOWED_ORIGINS": "https://siboniisozulu-alt.github.io"
+    "ALLOWED_ORIGINS": "https://siboniisozulu-alt.github.io,https://kasii-food-hub-neon-staging.pages.dev"
   }
 }
