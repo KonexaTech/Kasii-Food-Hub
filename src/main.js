@@ -50,7 +50,7 @@ function renderWelcome() {
   return renderBrowse() +
     "<div class='three-actions'>" +
     "<button class='soft-card' data-action='register' type='button'>✍️ <strong>Register business</strong><small>For business owners only</small></button>" +
-    "<button class='soft-card' data-action='view' data-view='owner' type='button'>🏪 <strong>Shop-owner dashboard</strong><small>Demo workspace</small></button>" +
+    "<button class='soft-card' data-action='view' data-view='owner' type='button' aria-label='Owner preview'>🏪 <strong>Shop-owner dashboard</strong><small>Demo workspace</small></button>" +
     "<button class='soft-card' data-action='view' data-view='admin' type='button'>🛡️ <strong>Admin dashboard</strong><small>Demo workspace</small></button></div>";
 }
 function featuredMenu() {
