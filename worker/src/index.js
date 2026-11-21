@@ -1,5 +1,6 @@
 import { neonApi } from "./neon-api.js";
 import { Client } from "pg";
+import { verifiedNeonSubject } from "./neon-auth.js";
 
 // Neon-only API. Database credentials stay in Worker secrets.
 const json = (body, status = 200, headers = {}) =>
@@ -13,7 +14,7 @@ function allowedOrigin(origin, env) {
   return origins.includes(origin) ? origin : null;
 }
 
-async function withDb(env, callback) {
+async function withDb(env, callback, request = null) {
   const connectionString = env.HYPERDRIVE?.connectionString || env.DATABASE_URL;
   if (!connectionString) throw new Error("Database binding not configured");
   if (!env.EXPECTED_NEON_HOST) throw new Error("Expected development database host not configured");
@@ -23,7 +24,12 @@ async function withDb(env, callback) {
   if (hostname !== env.EXPECTED_NEON_HOST.toLowerCase())
     throw new Error("Database target does not match development branch");
   const client = new Client({ connectionString, connectionTimeoutMillis: 5000 });
-  try { await client.connect(); return await callback(client); }
+  try {
+    await client.connect();
+    const subject = request ? await verifiedNeonSubject(request, env) : null;
+    await client.query("SELECT set_config('app.current_subject', $1, false)", [subject || ""]);
+    return await callback(client);
+  }
   finally { await client.end().catch(() => {}); }
 }
 
@@ -76,7 +82,7 @@ export default {
 
     if (!path.startsWith("/api/")) return json({ error: "Not found" }, 404, headers);
     try {
-      const response = await neonApi(request, env, withDb);
+      const response = await neonApi(request, env, (environment, callback) => withDb(environment, callback, request));
       if (!response) return json({ error: "Not found" }, 404, headers);
       const result = new Response(response.body, response);
       Object.entries(headers).forEach(([key, value]) => result.headers.set(key, value));
