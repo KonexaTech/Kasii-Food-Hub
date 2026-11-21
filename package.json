@@ -1,18 +1,17 @@
 {
   "name": "kasii-food-hub",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --test",
-    "test:e2e": "playwright test"
-  },
-  "dependencies": {
-    "vite": "^6.3.0"
+    "test": "node --test tests/*.test.js tests/*.test.mjs worker/test/role-policy.test.mjs",
+    "test:e2e": "playwright test",
+    "check": "node --check neon-app.js && node --check worker/src/index.js && node --check worker/src/neon-api.js && npm test"
   },
   "devDependencies": {
+    "vite": "^6.3.0",
     "@playwright/test": "^1.53.0"
   }
 }

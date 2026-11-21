@@ -1,0 +1,14 @@
+{
+  "name": "kasii-food-hub-api-dev",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-17",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "vars": {
+    "NEON_ONLY_MODE": "false",
+    "ALLOWED_ORIGIN": "https://siboniisozulu-alt.github.io",
+    "ALLOWED_ORIGINS": "https://siboniisozulu-alt.github.io"
+  }
+}
