@@ -1,0 +1,40 @@
+name: Deploy isolated Neon QA API
+on:
+  push:
+    branches: [feature/qa-api-hardening-20261121]
+    paths:
+      - 'worker/**'
+      - '.github/workflows/deploy-neon-api-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kasii-food-hub-api-qa
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+      - name: Run Worker checks
+        working-directory: worker
+        run: npm run check
+      - name: Explain missing deployment credential
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo 'Worker deployment skipped. Add the CLOUDFLARE_API_TOKEN repository secret to enable isolated QA deployment.'
+      - name: Deploy QA Worker
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 74fdd987dfadfdbb7322d9fc7f705499
+          workingDirectory: worker
+          command: deploy --config wrangler.jsonc
