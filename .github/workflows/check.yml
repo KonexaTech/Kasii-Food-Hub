@@ -15,3 +15,5 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run check
       - run: npm run build
+      - run: npm --prefix worker install --no-audit --no-fund
+      - run: npm --prefix worker run check
