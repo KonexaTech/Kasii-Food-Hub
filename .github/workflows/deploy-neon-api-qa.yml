@@ -39,6 +39,8 @@ jobs:
             echo "ready=false" >> "$GITHUB_OUTPUT"
             [ -n "$CLOUDFLARE_API_TOKEN" ] && echo "Cloudflare token: present" || echo "Cloudflare token: MISSING"
             [ -n "$NEON_DATABASE_URL" ] && echo "Neon database URL: present" || echo "Neon database URL: MISSING"
+            echo "Required repository secrets are unavailable to this workflow. Configure them under Settings > Secrets and variables > Actions > Repository secrets."
+            exit 1
           fi
       - name: Explain missing deployment credential
         if: steps.credentials.outputs.ready != 'true'
@@ -52,6 +54,6 @@ jobs:
           workingDirectory: worker
           command: deploy --config wrangler.jsonc
       - name: Configure isolated Neon database credential
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.NEON_DATABASE_URL != ''
+        if: steps.credentials.outputs.ready == 'true'
         working-directory: worker
         run: printf '%s' "$NEON_DATABASE_URL" | npx wrangler secret put DATABASE_URL --config wrangler.jsonc
