@@ -29,7 +29,7 @@ CREATE POLICY kfh_event_insert ON public.kfh_order_status_events FOR INSERT WITH
 DROP POLICY IF EXISTS kfh_commission_admin_read ON public.kfh_commission_entries;
 CREATE POLICY kfh_commission_admin_read ON public.kfh_commission_entries FOR SELECT USING (EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')));
 DROP POLICY IF EXISTS kfh_commission_completed_insert ON public.kfh_commission_entries;
-CREATE POLICY kfh_commission_completed_insert ON public.kfh_commission_entries FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.kfh_orders o JOIN public.kfh_shops s ON s.id=o.shop_id WHERE o.id=order_id AND o.shop_id=shop_id AND o.status='completed' AND o.test_order=false AND s.owner_subject=NULLIF(current_setting('app.current_subject', true),'')));
+CREATE POLICY kfh_commission_completed_insert ON public.kfh_commission_entries FOR INSERT WITH CHECK (false)
 DROP POLICY IF EXISTS kfh_commission_payment_admin ON public.kfh_commission_payments;
 CREATE POLICY kfh_commission_payment_admin ON public.kfh_commission_payments FOR ALL USING (EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),''))) WITH CHECK (EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')));
 DROP POLICY IF EXISTS kfh_notification_read ON public.kfh_notifications;
@@ -50,7 +50,7 @@ ALTER TABLE public.kfh_menu_items FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.kfh_orders FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.kfh_order_items FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.kfh_order_status_events FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.kfh_commission_entries FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_commission_entries NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.kfh_commission_payments FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.kfh_notifications FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.kfh_shop_applications FORCE ROW LEVEL SECURITY;
