@@ -18,7 +18,7 @@ test('customer searches, orders, tracks and sees owner status updates', async ({
   await expect(page.getByRole('heading', { name: 'Track your sample order' })).toBeVisible();
   await expect(page.getByText('Unpaid demo').first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Owner preview', exact: true }).click();
+  await page.getByRole('button', { name: 'Owner dashboard', exact: true }).click();
   await page.locator('#ownerShopSelect').selectOption('demo-shop-3');
   await page.locator("[data-modal='owner-orders']").click();
   await expect(page.getByText('DEMO-1001').first()).toBeVisible();
@@ -91,7 +91,7 @@ test('approved photographic home opens a guest checkout and routes the order to 
   await page.locator("input[name='deliveryAddress']").fill('Demo address');
   await page.getByRole('button',{name:'Create sample order'}).click();
   await expect(page.getByRole('heading',{name:'Track your sample order'})).toBeVisible();
-  await page.getByRole('button',{name:'Owner preview',exact:true}).click();
+  await page.getByRole('button',{name:'Owner dashboard',exact:true}).click();
   await page.locator("[data-modal='owner-orders']").click();
   await expect(page.getByText('DEMO-1001',{exact:true})).toBeVisible();
   await expect(page.locator('.order-record')).toContainText(product);
