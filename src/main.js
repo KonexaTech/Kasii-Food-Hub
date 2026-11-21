@@ -305,7 +305,7 @@ function render() {
   app.innerHTML = "<header class='topbar'><button type='button' class='brand' data-action='view' data-view='welcome'>" +
     "<span class='brand-symbol'>" + (KIND === 'cake' ? '🎂' : '🍲') + "</span>" +
     safe(config.title) + "</button><nav aria-label='Main navigation'>" +
-    navButton('Browse', 'browse') + navButton('Owner preview', 'owner') +
+    navButton('Browse', 'browse') + navButton('Owner dashboard', 'owner') +
     navButton('Admin preview', 'admin') + "</nav></header>" +
     demoLabel() + "<main class='page'>" + (screens[state.view] || renderWelcome)() +
     (state.message ? "<div class='notice' role='status'>" + safe(state.message) + "</div>" : '') +
