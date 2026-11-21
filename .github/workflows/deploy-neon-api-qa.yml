@@ -25,7 +25,11 @@ jobs:
       - name: Run Worker checks
         working-directory: worker
         run: npm run check
+      - name: Explain missing deployment credential
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
+        run: echo 'Worker deployment skipped. Add the CLOUDFLARE_API_TOKEN repository secret to enable isolated QA deployment.'
       - name: Deploy QA Worker
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
