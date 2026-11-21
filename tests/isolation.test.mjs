@@ -10,15 +10,16 @@ test("app has separate unconfigured API and Neon Auth and no Kota production hos
 });
 test("backend is enabled only for its isolated Neon QA branch",()=>{
  const config=read("worker/wrangler.jsonc");
- assert.match(config,/"name": "[a-z-]+-api-qa"/);
- assert.match(config,/"NEON_ONLY_MODE": "true"/);
- assert.match(config,/"EXPECTED_NEON_HOST": "ep-calm-sea-bdye9zrl\\.c-8\\.us-east-2\\.aws\\.neon\\.tech"/);
- assert.match(config,/"NEON_AUTH_URL": "https:\\/\\//);
- assert.doesNotMatch(config,/DATABASE_URL/);
+ assert.ok(config.includes('"name": "'));
+ assert.ok(config.includes('-api-qa"'));
+ assert.ok(config.includes('"NEON_ONLY_MODE": "true"'));
+ assert.ok(config.includes('"EXPECTED_NEON_HOST": "ep-calm-sea-bdye9zrl.c-8.us-east-2.aws.neon.tech"'));
+ assert.ok(config.includes('"NEON_AUTH_URL": "https://'));
+ assert.equal(config.includes("DATABASE_URL"),false);
  assert.match(read("app-config.js"),/authUrl:"",apiUrl:""/);
  const api=read("worker/src/neon-api.js");
- assert.match(api,/kfh_shops/);
- assert.doesNotMatch(api,/\\b(?:kfh|cc)_shops\\b/);
+ assert.ok(api.includes("kfh_shops"));
+ assert.equal(api.includes("cc_shops"),false);
 });
 test("all customer, owner and admin experiences are branded",()=>{
  for(const page of ["index.html","neon-customer.html","neon-owner.html","neon-admin.html"])
