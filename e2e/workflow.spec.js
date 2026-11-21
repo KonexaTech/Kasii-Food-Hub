@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('customer searches, orders, tracks and sees owner status updates', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Find what you are craving|Make every celebration sweeter/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Hungry\? Find your favourite meal|Find the cake for your occasion/ })).toBeVisible();
   await page.getByRole('button', { name: /Proceed to browse/ }).click();
   await page.locator('#areaSelect').selectOption('Osizweni');
   await expect(page.locator('.shop-card')).toHaveCount(1);
@@ -66,4 +66,38 @@ test('owner can add a menu product and change availability in a popup', async ({
   await expect(page.locator('.row-record').filter({ hasText: 'New Sample Item' })).toBeVisible();
   await page.locator('.row-record').filter({ hasText: 'New Sample Item' }).getByRole('button', { name: 'Hide' }).click();
   await expect(page.locator('.row-record').filter({ hasText: 'New Sample Item' }).getByText('Unavailable')).toBeVisible();
+});
+
+test('approved photographic home opens a guest checkout and routes the order to the correct dashboards', async ({ page }) => {
+  await page.goto('/');
+  const menu = page.locator('.featured-menu');
+  await expect(menu.locator('.product-card')).toHaveCount(4);
+  await expect(menu.locator('img')).toHaveCount(4);
+  for (const image of await menu.locator('img').all()) {
+    await expect.poll(() => image.evaluate(el => el.complete && el.naturalWidth > 0)).toBe(true);
+  }
+  const product = await menu.locator('.product-copy h3').first().innerText();
+  await menu.locator('.price-button').first().click();
+  await expect(page.getByRole('heading', {name:'Confirm your order',exact:true})).toBeVisible();
+  await expect(page.locator('.checkout-product h2')).toHaveText(product);
+  await expect(page.locator('.checkout-product img')).toBeVisible();
+  await expect(page.getByText('No customer registration required.',{exact:true})).toBeVisible();
+  await page.locator("input[name='customerName']").fill('Guest Demo');
+  await page.locator("input[name='customerPhone']").fill('0712345678');
+  await page.locator('#quantitySelect').selectOption('2');
+  await expect(page.locator("input[name='customerName']")).toHaveValue('Guest Demo');
+  await page.locator('#fulfillmentSelect').selectOption('delivery');
+  await expect(page.locator("input[name='customerPhone']")).toHaveValue('0712345678');
+  await page.locator("input[name='deliveryAddress']").fill('Demo address');
+  await page.getByRole('button',{name:'Create sample order'}).click();
+  await expect(page.getByRole('heading',{name:'Track your sample order'})).toBeVisible();
+  await page.getByRole('button',{name:'Owner preview',exact:true}).click();
+  await page.locator("[data-modal='owner-orders']").click();
+  await expect(page.getByText('DEMO-1001',{exact:true})).toBeVisible();
+  await expect(page.locator('.order-record')).toContainText(product);
+  await page.getByRole('button',{name:'Close dialog'}).click();
+  await page.getByRole('button',{name:'Admin preview',exact:true}).click();
+  await page.locator("[data-modal='admin-orders']").click();
+  await expect(page.locator('.order-record')).toContainText('Guest Demo');
+  await expect(page.locator('.order-record')).toContainText(product);
 });

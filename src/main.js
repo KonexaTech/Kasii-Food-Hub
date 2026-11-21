@@ -1,4 +1,5 @@
 import './style.css';
+import { photoDemoShops } from './approved-preview-menu.js';
 import { AREAS, STATUSES, STATUS_LABELS, SETTINGS, demoShops, filterShops, orderQuote, canTransition, formatPrice } from './flow.js';
 
 // Replace the identifier per repository. This is a local-only demonstration,
@@ -8,7 +9,7 @@ const config = SETTINGS[KIND];
 document.documentElement.dataset.marketplace = KIND;
 const app = document.getElementById('app');
 const state = {
-  view: 'welcome', modal: '', shops: demoShops(KIND), area: '', query: '',
+  view: 'welcome', modal: '', shops: photoDemoShops(demoShops(KIND)), area: '', query: '',
   selectedShopId: '', selectedProductId: '', quantity: 1, fulfillment: 'collection',
   ownerShopId: 'demo-shop-1', orders: [], applications: [], notifications: [],
   lastOrderId: '', message: ''
@@ -46,15 +47,24 @@ function banner(title, subtitle, eyebrow = 'YOUR COMMUNITY MARKETPLACE') {
     "</h1><p>" + subtitle + "</p></section>";
 }
 function renderWelcome() {
-  return banner(safe(config.headline), safe(config.description), 'WELCOME TO ' + safe(config.title.toUpperCase())) +
-    "<div class='welcome-panel'><div><h2>Discover local businesses in a few taps</h2>" +
-    "<p>Find a business by area or name, view its menu and confirmed sample prices, then tap a price to continue.</p>" +
-    "<button type='button' class='button primary big' data-action='view' data-view='browse'>Proceed to browse <span aria-hidden='true'>➜</span></button></div>" +
-    "<div class='welcome-symbol' aria-hidden='true'>" + (KIND === 'cake' ? '🎂' : '🍲') + "</div></div>" +
+  return renderBrowse() +
     "<div class='three-actions'>" +
-    "<button class='soft-card' data-action='register' type='button'>✍️ <strong>Register business</strong><small>Demo application form</small></button>" +
-    "<button class='soft-card' data-action='view' data-view='owner' type='button'>🏪 <strong>Business-owner dashboard</strong><small>Explore the demo workspace</small></button>" +
-    "<button class='soft-card' data-action='view' data-view='admin' type='button'>🛡️ <strong>Admin dashboard</strong><small>Explore the demo workspace</small></button></div>";
+    "<button class='soft-card' data-action='register' type='button'>✍️ <strong>Register business</strong><small>For business owners only</small></button>" +
+    "<button class='soft-card' data-action='view' data-view='owner' type='button'>🏪 <strong>Shop-owner dashboard</strong><small>Demo workspace</small></button>" +
+    "<button class='soft-card' data-action='view' data-view='admin' type='button'>🛡️ <strong>Admin dashboard</strong><small>Demo workspace</small></button></div>";
+}
+function featuredMenu() {
+  const shop = filterShops(state.shops, state.area, state.query).find(s => s.products.some(p=>p.available));
+  if (!shop) return '';
+  return "<section class='featured-menu'><div class='section-header'><div><h2>Menu and prices</h2><p class='muted'>"+safe(shop.name)+" · "+safe(shop.area)+" · Sample menu</p></div><span class='pill'>Tap a price</span></div><div class='product-grid'>" +
+    shop.products.filter(p=>p.available).map(product =>
+      "<article class='product-card'>" + picture(product, shop) +
+      "<div class='product-copy'><h3>"+safe(product.name)+"</h3><p>"+safe(product.description)+"</p>" +
+      "<button type='button' class='button price-button' data-action='buy' data-id='"+safe(shop.id)+"' data-product='"+safe(product.id)+"'>"+formatPrice(product.price)+" <span aria-hidden='true'>→</span></button></div></article>"
+    ).join('') + "</div></section>";
+}
+function frontResults() {
+  return featuredMenu() + "<h2 class='business-list-title'>Browse businesses</h2><div class='shop-list'>"+shopCards()+"</div>";
 }
 function shopCards() {
   const filtered = filterShops(state.shops, state.area, state.query);
@@ -69,15 +79,15 @@ function shopCards() {
     "'>View menu</button></article>").join('');
 }
 function renderBrowse() {
-  return banner('Browse ' + safe(config.plural) + ' near you',
-    'Choose an area or search for a business. Every listing shown here is fictional demo data.') +
+  return banner(KIND === 'cake' ? 'Find the cake for your occasion.' : 'Hungry? Find your favourite meal.',
+    'Choose an area or business, then tap a price. No customer account required.', 'LOCAL MARKETPLACE · DEMO') +
     "<section class='panel'><div class='section-header'><h2>Find a business</h2><span class='pill'>Sample shops only</span></div>" +
     "<div class='filters'><label>Choose your area<select id='areaSelect'>" +
     areaOptions(state.area) + "</select></label><label>Search by business name" +
     "<input id='shopSearch' type='search' placeholder='Type a shop name' value='" + safe(state.query) +
     "' autocomplete='off'></label></div><div id='shopResults' class='shop-list'>" +
-    shopCards() + "</div></section>" +
-    "<div class='bottom-actions'><button class='button outline' data-action='track-last' type='button'>Track my sample order</button>" +
+    frontResults() + "</div></section>" +
+    "<div class='bottom-actions'><button class='button outline' data-action='view' data-view='browse' type='button'>Proceed to browse</button><button class='button outline' data-action='track-last' type='button'>Track my sample order</button>" +
     "<button class='button outline' data-action='register' type='button'>Register business</button></div>";
 }
 function renderShop() {
@@ -101,10 +111,12 @@ function renderCheckout() {
   if (!product || !shop) return renderBrowse();
   const quote = orderQuote(product.price, state.quantity, state.fulfillment);
   return "<button class='back' type='button' data-action='view' data-view='shop'>← Back to menu</button>" +
-    banner('Confirm your sample order', 'Review the item, quantity and collection or delivery preference before continuing.', 'CHECKOUT DEMO') +
-    "<div class='two-col'><section class='panel'><h2>Your details</h2>" +
+    banner('Confirm your order', 'Review the item, quantity and collection or delivery preference before continuing.', 'CHECKOUT DEMO') +
+    "<section class='panel checkout-product'>" + picture(product, shop) + "<div><h2>" + safe(product.name) + "</h2><p>" + safe(product.description) + "</p><p><strong>" + formatPrice(product.price) + "</strong> · " + safe(shop.name) + "</p></div></section>" +
+    "<div class='two-col'><section class='panel'><h2>Your details</h2><p class='muted'>No customer registration required.</p>" +
     "<form id='checkoutForm'><label>Customer name<input name='customerName' required maxlength='80' placeholder='Your name'></label>" +
     "<label>Phone number<input name='customerPhone' type='tel' required minlength='7' maxlength='25' placeholder='Mobile phone'></label>" +
+    (KIND === 'cake' ? "<label>Event date (optional)<input type='date' name='eventDate'></label>" : '') +
     "<label>Quantity<select id='quantitySelect' name='quantity'>" +
     Array.from({length:10}, (_,i) => "<option value='" + (i+1) + "'" +
     (state.quantity === i+1 ? ' selected' : '') + ">" + (i+1) + "</option>").join('') + "</select></label>" +
@@ -115,7 +127,7 @@ function renderCheckout() {
     (state.fulfillment === 'delivery' ? "<label>Delivery address<input name='deliveryAddress' maxlength='180' required placeholder='Street and area'></label>" : '') +
     "<div class='payment-info'><strong>Payment</strong><p>Online payments are not connected. This demonstration creates an unpaid sample order only.</p>" +
     "<label class='inline-radio'><input type='radio' checked disabled> Pay at collection / delivery (preview)</label></div>" +
-    "<button type='submit' class='button primary big'>Create sample order</button></form></section>" +
+    "<button type='submit' class='button primary big' aria-label='Create sample order'>Confirm Order</button></form></section>" +
     "<aside class='panel summary'><h2>Order summary</h2>" +
     "<p class='muted'>" + safe(shop.name) + "</p><h3>" + safe(product.name) + "</h3>" +
     "<div class='totals'><div><span>Unit price</span><strong>" + formatPrice(product.price) + "</strong></div>" +
@@ -167,7 +179,7 @@ function renderOwner() {
     "<button class='dashboard-card' type='button' data-action='modal' data-modal='manage-shop'>🏪 <strong>Manage shop</strong><small>Update details, menu and prices</small><span>Open ↗</span></button>" +
     "<button class='dashboard-card' type='button' data-action='modal' data-modal='owner-orders'>📦 <strong>Customer orders</strong><small>Accept, prepare, ready, complete</small><span>Open ↗</span></button>" +
     "<button class='dashboard-card' type='button' data-action='modal' data-modal='owner-notifications'>🔔 <strong>Notifications</strong><small>Read demo order activity</small><span>Open ↗</span></button></div>" +
-    "<div class='bottom-actions'><button class='button outline' type='button' data-action='register'>Register a new business (preview)</button></div>";
+    "<p class='muted'>New business applications are submitted from the customer-facing home page.</p>";
 }
 function renderAdmin() {
   const pending = state.applications.filter(a => a.status === 'pending').length;
@@ -289,6 +301,7 @@ function render() {
     welcome: renderWelcome, browse: renderBrowse, shop: renderShop,
     checkout: renderCheckout, track: renderTrack, owner: renderOwner, admin: renderAdmin
   };
+  app.dataset.screen = state.view;
   app.innerHTML = "<header class='topbar'><button type='button' class='brand' data-action='view' data-view='welcome'>" +
     "<span class='brand-symbol'>" + (KIND === 'cake' ? '🎂' : '🍲') + "</span>" +
     safe(config.title) + "</button><nav aria-label='Main navigation'>" +
@@ -317,6 +330,8 @@ app.addEventListener('click', event => {
   if (action === 'view') return navigate(view);
   if (action === 'shop') { state.selectedShopId = id; return navigate('shop'); }
   if (action === 'buy') {
+    if (id) state.selectedShopId = id;
+    if (!shopById(state.selectedShopId)?.approved || !shopById(state.selectedShopId)?.products.some(p => p.id === product && p.available)) return;
     state.selectedProductId = product;
     state.quantity = 1;
     state.fulfillment = 'collection';
@@ -354,20 +369,30 @@ app.addEventListener('click', event => {
   }
   render();
 });
+function rerenderCheckout() {
+  const current = document.getElementById('checkoutForm');
+  const values = current ? new FormData(current) : null;
+  render();
+  const next = document.getElementById('checkoutForm');
+  if (values && next) for (const name of ['customerName','customerPhone','deliveryAddress','eventDate']) {
+    const field = next.elements.namedItem(name);
+    if (field && values.has(name)) field.value = String(values.get(name));
+  }
+}
 app.addEventListener('change', event => {
   const element = event.target;
   if (element.id === 'areaSelect') {
     state.area = element.value;
-    document.getElementById('shopResults').innerHTML = shopCards();
+    document.getElementById('shopResults').innerHTML = frontResults();
     return;
   }
   if (element.id === 'quantitySelect') {
     state.quantity = Number(element.value);
-    return render();
+    return rerenderCheckout();
   }
   if (element.id === 'fulfillmentSelect') {
     state.fulfillment = element.value;
-    return render();
+    return rerenderCheckout();
   }
   if (element.id === 'ownerShopSelect') {
     if (shopById(element.value)?.approved) state.ownerShopId = element.value;
@@ -377,7 +402,7 @@ app.addEventListener('change', event => {
 app.addEventListener('input', event => {
   if (event.target.id === 'shopSearch') {
     state.query = event.target.value;
-    document.getElementById('shopResults').innerHTML = shopCards();
+    document.getElementById('shopResults').innerHTML = frontResults();
   }
 });
 app.addEventListener('submit', event => {
@@ -395,7 +420,7 @@ app.addEventListener('submit', event => {
     const id = 'DEMO-' + String(1001 + state.orders.length);
     const order = { id, shopId: shop.id, shopName: shop.name, productName: product.name,
       customerName: String(values.get('customerName')).trim(), customerPhone: String(values.get('customerPhone')).trim(),
-      quantity: qty, fulfillment, deliveryAddress: String(values.get('deliveryAddress') || '').trim(),
+      quantity: qty, fulfillment, eventDate: String(values.get('eventDate') || ''), deliveryAddress: String(values.get('deliveryAddress') || '').trim(),
       total: quote.total, status: 'pending', paymentStatus: 'unpaid' };
     state.orders.unshift(order);
     state.lastOrderId = id;

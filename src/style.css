@@ -123,3 +123,34 @@ footer{text-align:center;padding:28px 15px;border-top:1px solid var(--outline);f
   .modal-top{top:-16px}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+/* Approved customer demo: charcoal and orange for food, cream/pink for cakes.
+   Owner/admin remain light, separately presented demo workspaces. */
+:root[data-marketplace="food"]{--brand:#c64b0b;--accent:#ff8a30;--accent-soft:#fff1e5;--hero-start:#19191e;--hero-end:#34343d;--outline:#ecd9cb}
+:root[data-marketplace="cake"]{--brand:#ac1656;--accent:#ec6198;--accent-soft:#fff0f5;--hero-start:#462023;--hero-end:#763e43;--outline:#f0cbd8}
+#app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"],[data-screen="checkout"]) .page{max-width:920px}
+#app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]) .hero{padding:26px 22px;margin-bottom:14px}
+#app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]) .hero h1{font-size:clamp(1.55rem,4vw,2.6rem)}
+.featured-menu{margin-top:16px}
+.featured-menu .section-header p{margin:4px 0;font-size:.82rem}
+.business-list-title{margin-top:26px!important}
+.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.product-card{display:flex;flex-direction:column;border-radius:17px;box-shadow:0 5px 18px #00000012}
+.product-photo,.product-card .illustration{width:100%;height:clamp(125px,24vw,235px);object-fit:cover}
+.product-copy{display:flex;flex-direction:column;flex:1;padding:12px}
+.product-copy h3{font-size:clamp(.95rem,2vw,1.3rem);line-height:1.25;overflow-wrap:anywhere}
+.product-copy p{font-size:.8rem;min-height:36px;flex:1}
+.price-button{width:100%;min-width:0;min-height:48px;font-size:1.15rem;margin-top:12px;background:linear-gradient(115deg,var(--brand),var(--brand));border:0}
+.checkout-product{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);align-items:center;gap:16px;overflow:hidden}
+.checkout-product img{border-radius:14px;height:180px}
+.checkout-product strong{font-size:1.2rem;color:var(--brand)}
+#checkoutForm .button.primary{width:100%;margin-top:12px}
+:root[data-marketplace="food"] #app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]){background:#15151b;color:#fff;min-height:100dvh}
+:root[data-marketplace="food"] #app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]) :is(.topbar,.panel,.shop-card,.soft-card,.product-card){background:#25252c;border-color:#3e3e48;color:#fff}
+:root[data-marketplace="food"] #app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]) :is(.brand,.back){color:#ffad72}
+:root[data-marketplace="food"] #app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]) :is(.nav-link,.filters label){color:#fff}
+:root[data-marketplace="food"] #app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]) :is(.nav-link.current,.nav-link:hover){background:#48404a;color:white}
+:root[data-marketplace="food"] #app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]) :is(.muted,.product-copy p,.shop-info p,.shop-info small,.subtle,.soft-card small){color:#c5c5ce}
+:root[data-marketplace="cake"] #app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"],[data-screen="checkout"]){background:#fff1f4;min-height:100dvh}
+:root[data-marketplace="cake"] #app:is([data-screen="welcome"],[data-screen="browse"],[data-screen="shop"]) .product-card{background:#fff9f6}
+@media(max-width:760px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.product-copy{padding:10px}.product-copy p{font-size:.75rem}.price-button{padding:10px 4px;font-size:1rem}.checkout-product{grid-template-columns:1fr}.checkout-product img{height:190px}.page{padding:13px 12px 45px}.panel{padding:14px}.topbar{gap:8px}}
