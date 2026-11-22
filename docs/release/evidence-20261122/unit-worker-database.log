@@ -1,0 +1,37 @@
+✔ each marketplace has its own shops and identity (1.866957ms)
+✔ only approved shops are discoverable by area and name (0.258419ms)
+✔ tapping a price leads to a deterministic demo quote (1.206261ms)
+✔ order lifecycle cannot skip required steps (0.289556ms)
+✔ app has separate unconfigured API and Neon Auth and no Kota production host (2.488091ms)
+✔ backend is enabled only for its isolated Neon QA branch (0.384128ms)
+✔ all customer, owner and admin experiences are branded (0.223538ms)
+✔ single text box accepts historical rand-price format (0.709996ms)
+✔ bad rows, zero prices and duplicates are blocked before writes (0.433214ms)
+✔ loads available items into text form while retaining cents (0.526933ms)
+✔ updates prices without replacing item IDs; omissions hide rather than delete (0.543008ms)
+✔ re-add an unavailable item by reactivating its existing ID (0.17417ms)
+✔ fresh migration sequence compiles and enables RLS for every marketplace table (8244.284974ms)
+✔ owner status update and customer notification commit together; outsiders cannot spoof recipients (5045.048544ms)
+✔ authenticated checkout rejects malformed payloads before SQL and normalizes UUID retries (148.887544ms)
+✔ pickup and delivery checkout keep the submitted order details (0.438628ms)
+✔ malformed bodies and line items fail validation without throwing (6.045147ms)
+✔ contact and delivery fields require bounded strings (1.676861ms)
+✔ invalid, duplicate, fractional, and excessive item requests are rejected (0.322656ms)
+✔ status API follows the existing database rules for delayed orders (53.885155ms)
+✔ password recovery uses NEON_AUTH_URL for both reset pages and submission (3.649443ms)
+✔ password recovery uses NEON_AUTH_BASE_URL for both reset pages and submission (1.167196ms)
+✔ upstream recovery connection failure returns a generic retryable response (3.230773ms)
+✔ password recovery pages are routed before the API-only guard (1.754293ms)
+✔ password reset submission reaches validation without external calls (0.616188ms)
+✔ origin restriction and method restriction remain enforced (1.159757ms)
+✔ recovery pages require the staging Neon-only mode, and unknown paths remain unavailable (0.55538ms)
+✔ shop-owner and application endpoints require non-admin identities (0.183576ms)
+✔ administrator and shared endpoints remain accessible under their own policies (0.182287ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13800.30511

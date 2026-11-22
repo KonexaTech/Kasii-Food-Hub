@@ -1,61 +1,26 @@
 # Kasii Food Hub
 
- feature/reuse-kota-ordering-foundation-20261120
-Independent marketplace for cooked meals, shisanyama and takeaways. Customer browsing/order/tracking, owner menus/orders and administrator approvals were adapted from the Kota Connect Neon user experience.
+Independent marketplace for cooked meals, shisanyama and takeaways. Preserve the approved **Order Food Now** photographic experience.
 
-## Screens
-- `index.html` / `neon-customer.html` — customer
-- `neon-owner.html` — owner
-- `neon-admin.html` — administrator
+**Public transactions remain on HOLD.** The home page is a clearly labelled browser-session demonstration. Sample orders, customers, business approvals and uploaded photographs are not permanent marketplace records. Do not accept real payments or treat the example delivery fee as an actual service commitment.
 
-**Not live:** `app-config.js` deliberately has no Auth or API endpoint. This application must use its own Neon project and Worker; never use Kota Connect credentials or data. Server-side API, migrations and role enforcement require separate configuration and tests before controlled testing. Payments, custom requests, photographs and native push are not implemented by copying these screens.
+Separate Neon customer, owner and administrator pages and a server API foundation exist. The public `app-config.js` API/Auth URLs remain blank. The existing independent Neon QA project has been inspected read-only; its existence does not prove the public demonstration is connected.
 
-Run `npm run check` and `npm run build` once dependencies are installed. Controlled-test target: 15 December 2026. No database migration, merge or deployment has been performed.
+Read [the current release report](docs/release/2026-11-22-release-readiness.md) for exact evidence, repairs, proposed SQL, configuration gaps and release gates. [The acceptance checklist](docs/RELEASE_GATES.md) remains open until observable live evidence is recorded.
 
-Cooked meals, shisanyama and takeaway ordering. Independent GitHub frontend with a Kota Connect-style customer, business-owner and administrator flow.
+## Local checks
 
-## Current status — interactive demo only
-
-This branch contains a working **browser-session simulation**. It is **not** a production marketplace. The sample businesses and prices are fictional. No backend, payment gateway, actual delivery service, secure sign-in, email verification or server-side commission is connected. Customer names, application entries, orders and uploaded photos in the demo exist only in browser memory and disappear on refresh. Do not use this preview for real transactions.
-
-## Customer flow
-
-1. Welcome screen → tap **Proceed**.
-2. Choose a Newcastle area (including Madadeni Sections 1–7) or search for a business by name.
-3. View an approved demo business, products and indicative prices.
-4. **Tap the price** → enter details, select quantity and collection/delivery.
-5. Create an **unpaid sample order** (delivery is a R5 example quote, not a service commitment).
-6. Track order progress as the demo owner marks it accepted → preparing → ready → completed.
-
-## Business-owner flow
-
-- **Register business** opens a form that creates a pending demo application.
-- No email is sent and no owner account is created yet.
-- **Owner preview** lets you select an approved sample business, then use pop-up panels to manage shop details, menu, prices and optional session-only photos.
-- **Customer orders** pop-up updates permitted statuses. **Notifications** pop-up shows incoming sample orders and changes.
-- Real owner permissions will be enforced by the backend later; the preview has no authentication.
-
-## Administrator flow
-
-- **Admin preview** displays counts, applications and approved businesses.
-- **Business approvals** pop-up approves or rejects sample applications. An approved application becomes a sample listing without menu items until they are added.
-- **Customer orders**, **Notifications**, **Business records**, and **Commission ledger** appear in separate pop-up panels.
-- Commission rate is explicitly **not configured**; the frontend collects nothing. Real admin access and ledger will be server-controlled later.
-
-## Running and checking
-
-```bash
-npm install
-npm test
-npm run dev
+```sh
+npm ci --no-audit --no-fund
+npm --prefix worker ci --no-audit --no-fund
+npm run check
+npm --prefix worker run check
 npm run build
+npm run test:e2e
 ```
 
-A GitHub Actions workflow tests the marketplace rules and builds Vite on each branch push and pull request. A separate GitHub Pages workflow can publish the approved main branch after repository Pages settings are enabled.
+Browser tests require Playwright Chromium (or an explicitly supplied `CHROMIUM_PATH`). They exercise isolated session-only demonstrations, not live transactions or physical Android acceptance.
 
-## Separation and future backend
+## Isolation
 
-This app has its own repository and will later use its own Neon project, not the Kota Connect or the other marketplace's database. Payments, live identities, image uploads, notification delivery and permanent order records are deliberately deferred.
-
-Controlled testing target: 15 December 2026; the current demo is not a controlled-release APK or production system.
- main
+Use only this application's dedicated Neon project and API. Never reuse Kota Connect or Cake Connect databases, Auth tenants or secrets. Inspect and review migrations and recoverable backups before any remote application. This repair branch changes no production data, commissions, public configuration, branding or navigation. Payments, push, signed Android builds and shared delivery still require implementation/configuration and acceptance; no provider success is simulated.

@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-22",
+  "baseline": "440d5533be002d58f2307e32bcbae4e80e90fa6a",
+  "scope": "Local fixtures, in-memory PostgreSQL and read-only QA catalogs; not physical or live order acceptance",
+  "unitWorkerDatabase": {
+    "pass": 29,
+    "fail": 0
+  },
+  "browserDemo": {
+    "pass": 4,
+    "fail": 0,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  "rootCleanInstall": "PASS",
+  "workerCleanInstall": "PASS",
+  "webProductionBuild": "PASS",
+  "workerDryRunPackaging": "PASS",
+  "rootProductionDependencyVulnerabilities": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "workerProductionDependencyVulnerabilities": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "remoteMigrationsApplied": false,
+  "deployed": false,
+  "signedAndroidArtifact": "NOT IMPLEMENTED",
+  "physicalDeviceTests": "BLOCKED",
+  "readinessDecision": "NOT READY",
+  "publicRelease": "HOLD"
+}

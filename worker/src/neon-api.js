@@ -1,9 +1,10 @@
 import { verifiedNeonSubject, isNeonAdmin } from "./neon-auth.js";
 import { isOwnerOnlyRoute } from "./role-policy.js";
+import { validateCheckout } from "./checkout-validation.js";
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const statuses=["pending","accepted","preparing","ready_for_collection","out_for_delivery","completed","rejected","delayed"];
-const next={pending:["accepted","rejected"],accepted:["preparing","delayed","rejected"],preparing:["ready_for_collection","out_for_delivery","delayed"],delayed:["accepted","preparing","ready_for_collection","out_for_delivery","rejected"],ready_for_collection:["completed"],out_for_delivery:["completed"]};
+const next={pending:["accepted","rejected","delayed"],accepted:["preparing","delayed","rejected"],preparing:["ready_for_collection","out_for_delivery","delayed"],delayed:["accepted","rejected"],ready_for_collection:["completed"],out_for_delivery:["completed"]};
 async function readBody(request){try{return await request.json()}catch{return null}}
 export async function neonApi(request,env,withDb){
   const url=new URL(request.url),path=url.pathname,method=request.method;
@@ -49,8 +50,11 @@ export async function neonApi(request,env,withDb){
   if(method==="GET"&&history&&uuid.test(history[1])){const order=await withDb(env,async db=>(await db.query("SELECT o.customer_subject,s.owner_subject FROM kfh_orders o JOIN kfh_shops s ON s.id=o.shop_id WHERE o.id=$1",[history[1]])).rows[0]);if(!order)return json({error:"Order not found"},404);if(order.customer_subject!==subject&&order.owner_subject!==subject&&!await isNeonAdmin(env,withDb,subject))return json({error:"Forbidden"},403);return json({events:await withDb(env,async db=>(await db.query("SELECT previous_status,new_status,actor_role,note,created_at FROM kfh_order_status_events WHERE order_id=$1 ORDER BY created_at,id LIMIT 200",[history[1]])).rows)})}
   if(method==="POST"&&path==="/api/orders"){
     const data=await readBody(request);
-    if(!data||!uuid.test(data.requestId||"")||!uuid.test(data.shopId||"")||!Array.isArray(data.items)||!data.items.length||data.items.length>30||!["pickup","delivery"].includes(data.fulfillmentType)||typeof data.customerName!=="string"||data.customerName.trim().length<2||data.customerName.length>100||typeof data.customerPhone!=="string"||data.customerPhone.length>30||typeof data.area!=="string"||data.area.length>160||data.fulfillmentType==="delivery"&&(!data.deliveryAddress||data.deliveryAddress.length>300))return json({error:"Invalid checkout"},400);
-    if(data.items.some(x=>!uuid.test(x.itemId||"")||!Number.isInteger(x.quantity)||x.quantity<1||x.quantity>50))return json({error:"Invalid items"},400);
+    if(!validateCheckout(data))return json({error:"Invalid checkout"},400);
+    // PostgreSQL UUIDs are canonical lowercase; normalize before retry comparisons.
+    data.requestId=data.requestId.toLowerCase();
+    data.shopId=data.shopId.toLowerCase();
+    data.items=data.items.map(item=>({...item,itemId:item.itemId.toLowerCase()}));
     try {const result=await withDb(env,async db=>{await db.query("BEGIN");try{
       const existing=(await db.query("SELECT id,order_number,status,total_cents,shop_id,customer_name,customer_phone,area,delivery_address,fulfillment_type FROM kfh_orders WHERE customer_subject=$1 AND client_request_id=$2",[subject,data.requestId])).rows[0];if(existing){const lines=(await db.query("SELECT menu_item_id AS id,quantity FROM kfh_order_items WHERE order_id=$1",[existing.id])).rows;const matches=existing.shop_id===data.shopId&&existing.customer_name===data.customerName.trim()&&existing.customer_phone===data.customerPhone.trim()&&existing.area===data.area.trim()&&existing.fulfillment_type===data.fulfillmentType&&(existing.delivery_address||"")===(data.deliveryAddress||"")&&lines.length===data.items.length&&data.items.every(x=>lines.some(y=>y.id===x.itemId&&y.quantity===x.quantity));if(!matches)throw Error("REQUEST_REUSED");await db.query("COMMIT");return {order:existing,replayed:true}}
       const shop=(await db.query("SELECT id,owner_subject FROM kfh_shops WHERE id=$1 AND approved=true",[data.shopId])).rows[0];if(!shop)throw Error("SHOP");

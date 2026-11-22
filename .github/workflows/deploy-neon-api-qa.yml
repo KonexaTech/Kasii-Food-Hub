@@ -23,7 +23,7 @@ jobs:
           node-version: '22'
       - name: Install Worker dependencies
         working-directory: worker
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Run Worker checks
         working-directory: worker
         run: npm run check
