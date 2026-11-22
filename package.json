@@ -8,7 +8,8 @@
     "build": "vite build",
     "test": "node --test tests/*.test.js tests/*.test.mjs worker/test/*.test.mjs",
     "test:e2e": "playwright test",
-    "check": "node --check neon-app.js && node --check worker/src/index.js && node --check worker/src/neon-api.js && npm test"
+    "check": "node --check neon-app.js && node --check worker/src/index.js && node --check worker/src/neon-api.js && npm test",
+    "build:qa": "node scripts/build-qa.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16",

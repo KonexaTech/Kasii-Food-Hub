@@ -52,7 +52,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 74fdd987dfadfdbb7322d9fc7f705499
           workingDirectory: worker
-          command: deploy --config wrangler.jsonc
+          command: deploy --config wrangler.jsonc --var QA_SOURCE_COMMIT:${{ github.sha }}
       - name: Configure isolated Neon database credential
         if: steps.credentials.outputs.ready == 'true'
         working-directory: worker

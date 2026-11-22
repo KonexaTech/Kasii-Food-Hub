@@ -7,3 +7,11 @@ dist/
 # Generated local browser acceptance evidence
 test-results/
 playwright-report/
+
+# Isolated, generated QA frontend artifacts
+dist-qa/
+
+# Worker local state and private development bindings
+.wrangler/
+.dev.vars
+.dev.vars.*
