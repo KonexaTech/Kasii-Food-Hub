@@ -1,3 +1,3 @@
 export function normalizeNeonHost(hostname) {
-  return String(hostname || "").toLowerCase().replace(/-pooler(?=\\.c-)/, "");
+  return String(hostname || "").toLowerCase().replace(/-pooler\./, ".");
 }
