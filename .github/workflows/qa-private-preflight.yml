@@ -41,7 +41,17 @@ jobs:
           console.log('Neon database URL matches isolated QA branch: ' + isExpectedQaHost);
           console.log('Neon database URL matches production branch: ' + isProductionHost);
           if (!isExpectedQaHost) stop(isProductionHost ? 'BLOCKED: NEON_DATABASE_URL points to production. Do not deploy.' : 'NEON_DATABASE_URL does not match this app isolated QA branch.');
-          console.log('Cloudflare deployment token: present (value hidden).');
+          const knownAccountHosts = ["ep-broad-paper-bduk5624.c-8.us-east-2.aws.neon.tech","ep-calm-sea-bdye9zrl.c-8.us-east-2.aws.neon.tech","ep-long-surf-be04z61a.c-9.us-east-2.aws.neon.tech","ep-lingering-sun-bekugkhi.c-9.us-east-2.aws.neon.tech","ep-young-glitter-bgm0izt0.c-9.eu-central-1.aws.neon.tech","ep-lively-leaf-za5rtfhs.c-2.eu-west-2.aws.neon.tech","ep-lively-morning-zapnzgbl.c-2.eu-west-2.aws.neon.tech"];
+          const matchesKnownAccountBranch = knownAccountHosts.includes(actualHost);
+          console.log('Neon URL matches an endpoint in the connected Neon account: ' + matchesKnownAccountBranch);
+          if (!isExpectedQaHost) stop(isProductionHost ? 'BLOCKED: NEON_DATABASE_URL points to production. Do not deploy.' : (matchesKnownAccountBranch ? 'NEON_DATABASE_URL points to another known branch/project, not this app QA branch.' : 'NEON_DATABASE_URL does not match any known branch in this Neon account.'));
+          const tokenCheck = await fetch('https://api.cloudflare.com/client/v4/user/tokens/verify', { headers: { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN } });
+          let tokenResult = null;
+          try { tokenResult = await tokenCheck.json(); } catch {}
+          const tokenActive = tokenCheck.ok && tokenResult?.success === true && tokenResult?.result?.status === 'active';
+          console.log('Cloudflare API token verified active: ' + tokenActive);
+          if (!tokenActive) stop('Cloudflare API token is not valid/active for Cloudflare API requests.');
+          console.log('Cloudflare deployment token: present and active (value hidden).');
           console.log('Neon connection: present and configured QA host matches (value hidden).');
           console.log('Worker route configuration: private/fail-closed.');
           console.log('Preflight complete. No deployment, network or database operations performed.');
