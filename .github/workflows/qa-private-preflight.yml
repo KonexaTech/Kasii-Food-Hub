@@ -55,6 +55,12 @@ jobs:
           console.log('Cloudflare API token verified active: ' + tokenActive);
           if (!tokenActive) stop('Cloudflare API token is not valid/active for Cloudflare API requests.');
           console.log('Cloudflare deployment token: present and active (value hidden).');
+          const workerApi = await fetch('https://api.cloudflare.com/client/v4/accounts/' + cfg.account_id + '/workers/scripts', { headers: { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN } });
+          let workerApiResult = null;
+          try { workerApiResult = await workerApi.json(); } catch {}
+          const workerAccountAccess = workerApi.ok && workerApiResult?.success === true && Array.isArray(workerApiResult?.result);
+          console.log('Cloudflare token can access this account Worker API: ' + workerAccountAccess);
+          if (!workerAccountAccess) stop('Cloudflare token lacks verified Worker API access to the configured account.');
           if (!usesLeastPrivilegeRole) stop('NEON_DATABASE_URL does not use the dedicated restricted worker role.');
           if (!isExpectedQaHost) stop(isProductionHost ? 'BLOCKED: NEON_DATABASE_URL points to production. Do not deploy.' : (matchesKnownAccountBranch ? 'NEON_DATABASE_URL points to another known branch/project, not this app QA branch.' : 'NEON_DATABASE_URL does not match any known branch in this Neon account.'));
           console.log('Neon connection: present and configured QA host matches (value hidden).');
