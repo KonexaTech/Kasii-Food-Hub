@@ -28,6 +28,7 @@ test('delivery callback persists dedupe and monotonic state without completing o
  assert.equal((await call(event(2,'collected'))).status,200);
  assert.equal((await call(event(2,'collected'))).status,200);
  assert.equal((await call({...event(2,'enroute')})).status,409);
+ assert.equal((await call({...event(2,'enroute'),event_id:shop})).status,409);
  assert.equal((await call(event(1,'assigned'))).status,200);
  assert.equal((await db.query('SELECT status FROM '+prefix+'_delivery_state')).rows[0].status,'collected');
  assert.equal((await call({...event(3),job_id:shop})).status,409);
