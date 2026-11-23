@@ -19,6 +19,8 @@ jobs:
       NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -28,25 +30,36 @@ jobs:
       - name: Run Worker checks
         working-directory: worker
         run: npm run check
-      - name: Check deployment credentials (values are never printed)
-        id: credentials
+      - name: Verify private Cloudflare and isolated Neon deployment targets
+        working-directory: worker
         shell: bash
         run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$NEON_DATABASE_URL" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "Both required deployment credentials are available."
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            [ -n "$CLOUDFLARE_API_TOKEN" ] && echo "Cloudflare token: present" || echo "Cloudflare token: MISSING"
-            [ -n "$NEON_DATABASE_URL" ] && echo "Neon database URL: present" || echo "Neon database URL: MISSING"
-            echo "Required repository secrets are unavailable to this workflow. Configure them under Settings > Secrets and variables > Actions > Repository secrets."
-            exit 1
-          fi
-      - name: Explain missing deployment credential
-        if: steps.credentials.outputs.ready != 'true'
-        run: echo 'Worker deployment skipped. Add the missing repository secret shown by the credential check.'
-      - name: Deploy QA Worker
-        if: steps.credentials.outputs.ready == 'true'
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { assertNeonConnectionTarget } from './src/neon-host.js';
+          const cfg = JSON.parse(readFileSync('wrangler.jsonc', 'utf8'));
+          const stop = message => { throw new Error(message); };
+          if (cfg.workers_dev !== false || cfg.preview_urls !== false) stop('Public Worker and preview routes must remain disabled for initial QA deployment.');
+          if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.NEON_DATABASE_URL) stop('Required staging credentials are missing.');
+          assertNeonConnectionTarget(process.env.NEON_DATABASE_URL, cfg.vars?.EXPECTED_NEON_HOST, cfg.vars?.EXPECTED_NEON_ROLE);
+          const verify = await fetch('https://api.cloudflare.com/client/v4/user/tokens/verify', {
+            headers: { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN }
+          });
+          let tokenBody = null;
+          try { tokenBody = await verify.json(); } catch {}
+          if (!verify.ok || tokenBody?.success !== true || tokenBody?.result?.status !== 'active') stop('Cloudflare API token is not active.');
+          const workerApi = await fetch('https://api.cloudflare.com/client/v4/accounts/' + cfg.account_id + '/workers/scripts', {
+            headers: { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN }
+          });
+          let workerBody = null;
+          try { workerBody = await workerApi.json(); } catch {}
+          if (!workerApi.ok || workerBody?.success !== true || !Array.isArray(workerBody?.result)) stop('Cloudflare token cannot access the configured account Worker API.');
+          console.log('Private QA route configuration: verified.');
+          console.log('Neon target: exact QA branch and restricted Worker role verified (credentials hidden).');
+          console.log('Cloudflare token: active and configured-account Worker API access verified (token hidden).');
+          console.log('Pre-deployment gate passed. No production target or public route is permitted by this workflow.');
+          NODE
+      - name: Deploy QA Worker with public routes disabled
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -54,6 +67,6 @@ jobs:
           workingDirectory: worker
           command: deploy --config wrangler.jsonc
       - name: Configure isolated Neon database credential
-        if: steps.credentials.outputs.ready == 'true'
         working-directory: worker
+        shell: bash
         run: printf '%s' "$NEON_DATABASE_URL" | npx wrangler secret put DATABASE_URL --config wrangler.jsonc
