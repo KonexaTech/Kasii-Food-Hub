@@ -55,6 +55,12 @@ test('separate QA build preserves production configuration and contains only app
   const config=await readFile(join(built.output,'app-config.js'),'utf8');assert.match(config,/location.origin/);assert.doesNotMatch(config,/DATABASE_URL|password|service_role|kota-connect/);
   const manifest=JSON.parse(await readFile(join(built.output,'qa-build.json'),'utf8'));assert.equal(manifest.sourceCommit,sourceCommit);assert.equal(manifest.liveAcceptance,'NOT_TESTED');assert.deepEqual(manifest.targets,target);
   assert.match(await readFile(join(built.output,'neon-app.js'),'utf8'),/qa-health/);
+  const sources=['b'.repeat(40),'c'.repeat(40),'d'.repeat(40)];
+  const outputs=await Promise.all(sources.map((sha,index)=>buildQa(root,sha,index?{outputName:'dist-qa-test-1-'+index}:{})));
+  assert.equal(new Set(outputs.map(x=>x.output)).size,3,'Browser workers and the release artifact require separate build output directories');
+  for(let index=0;index<outputs.length;index++){const artifact=JSON.parse(await readFile(join(outputs[index].output,'qa-build.json'),'utf8'));assert.equal(artifact.sourceCommit,sources[index]);for(const name of Object.keys(artifact.files))assert((await readFile(join(outputs[index].output,name))).length>0);}
+  await assert.rejects(buildQa(root,sourceCommit,{outputName:'../unrelated'}),/output/);
+  assert.equal(await readFile(join(root,'app-config.js'),'utf8'),before);
   const modified={...target,apiUrl:'https://other-app.example'};await writeFile(join(root,'staging/qa-targets.json'),JSON.stringify(modified));
   await assert.rejects(buildQa(root,sourceCommit),/do not match/);
  }finally{await rm(root,{recursive:true,force:true});}
