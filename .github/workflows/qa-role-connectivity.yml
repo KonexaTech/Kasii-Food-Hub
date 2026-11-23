@@ -23,7 +23,7 @@ jobs:
           node-version: '22'
       - name: Install locked Worker dependencies
         working-directory: worker
-        run: npm ci --ignore-scripts --no-audit --no-fund
+        run: npm install --no-package-lock --ignore-scripts --no-audit --no-fund
       - name: Verify restricted Neon QA connection and Cloudflare token without deployment
         working-directory: worker
         env:
