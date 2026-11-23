@@ -2,6 +2,7 @@ import { deliveryEvents } from "./delivery-events.js";
 import { deliveryOrderLookup } from "./delivery-source-orders.js";
 import { neonApi } from "./neon-api.js";
 import { Client } from "pg";
+import { normalizeNeonHost } from "./neon-host.js";
 import { verifiedNeonSubject } from "./neon-auth.js";
 
 // Neon-only API. Database credentials stay in Worker secrets.
@@ -21,9 +22,9 @@ async function withDb(env, callback, request = null) {
   if (!connectionString) throw new Error("Database binding not configured");
   if (!env.EXPECTED_NEON_HOST) throw new Error("Expected development database host not configured");
   let hostname;
-  try { hostname = new URL(connectionString).hostname.toLowerCase(); }
+  try { hostname = normalizeNeonHost(new URL(connectionString).hostname); }
   catch { throw new Error("Invalid database connection URL"); }
-  if (hostname !== env.EXPECTED_NEON_HOST.toLowerCase())
+  if (hostname !== normalizeNeonHost(env.EXPECTED_NEON_HOST))
     throw new Error("Database target does not match development branch");
   const client = new Client({ connectionString, connectionTimeoutMillis: 5000 });
   try {
