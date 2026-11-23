@@ -13,6 +13,8 @@
     "EXPECTED_NEON_HOST": "ep-calm-sea-bdye9zrl.c-8.us-east-2.aws.neon.tech",
     "ALLOWED_ORIGIN": "https://siboniisozulu-alt.github.io",
     "ALLOWED_ORIGINS": "https://siboniisozulu-alt.github.io,https://kasii-food-hub-neon-staging.pages.dev",
-    "DELIVERY_CALLBACKS_ENABLED": "false"
+    "DELIVERY_CALLBACKS_ENABLED": "false",
+    "DELIVERY_DISPATCH_ENABLED": "false",
+    "DELIVERY_SOURCE_LOOKUP_ENABLED": "false"
   }
 }

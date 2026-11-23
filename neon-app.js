@@ -16,10 +16,12 @@ async function verifyAdminAccess(){if(role!=="admin")return;try{await api("/api/
 async function api(path,method="GET",body,publicRoute=false){const headers={"content-type":"application/json"};if(!publicRoute){const r=await auth.token();if(r.error)throw Error(r.error.message);if(!r.data?.token)throw Error("Sign in to continue");headers.authorization="Bearer "+r.data.token;}const response=await fetch(API+path,{method,headers,body:body?JSON.stringify(body):undefined});const data=await response.json();if(!response.ok)throw Error(data.error||"Request failed");return data}
 function option(select,items,label){select.replaceChildren(new Option("Select",""),...items.map(x=>new Option(label(x),x.id)))}
 async function showIdentity(){
+  if($("requestDelivery"))$("requestDelivery").hidden=true;
   showDashboardPanels(false);
   const r=await auth.getSession();
   if(r.error)throw Error(r.error.message);
   if(!r.data?.user){$("identity").textContent="Not signed in";return}
+  if(role==="owner"){try{const delivery=await api("/api/delivery/capabilities");if($("requestDelivery"))$("requestDelivery").hidden=!delivery.dispatch_enabled;}catch{}}
   if(role!=="owner"&&role!=="admin"){showDashboardPanels(true);$("identity").textContent=r.data.user.email;return}
   try{
     const me=await api("/api/me");
@@ -44,8 +46,9 @@ $("shop").onchange=safe(async()=>{const id=$("shop").value;if(!id)return;const d
 bind("addCart",async()=>{const item=menu.find(x=>x.id===$("item").value),quantity=Number($("quantity").value);if(!item||!Number.isInteger(quantity)||quantity<1||quantity>50)throw Error("Select a menu item and quantity");const current=cart.find(x=>x.itemId===item.id);if(current){if(current.quantity+quantity>50)throw Error("Maximum 50 per item");current.quantity+=quantity}else cart.push({itemId:item.id,quantity});requestId=null;$("cart").textContent=cart.map(x=>{const m=menu.find(i=>i.id===x.itemId);return m.name+" × "+x.quantity}).join(", ");out("Added to cart")});
 bind("clearCart",async()=>{cart=[];requestId=null;$("cart").textContent="Cart empty";out("Cart cleared")});
 $("checkout").onsubmit=e=>{e.preventDefault();safe(async()=>{if(!requestId)requestId=crypto.randomUUID();const data=await api("/api/orders","POST",{requestId,shopId:$("shop").value,items:cart.length?cart:[{itemId:$("item").value,quantity:Number($("quantity").value)}],customerName:$("customerName").value,customerPhone:$("customerPhone").value,area:$("area").value,fulfillmentType:$("fulfillment").value,deliveryAddress:$("address").value});requestId=null;cart=[];$("cart").textContent="Cart empty";$("orderId").value=data.order.id;out(data)})()};
+bind("requestDelivery",async()=>out(await api("/api/owner/orders/"+encodeURIComponent(required("orderId","Order ID"))+"/delivery","POST",{})));
 bind("myOrders",async()=>out(await api("/api/orders/mine")));
-bind("track",async()=>out(await api("/api/orders/"+encodeURIComponent($("orderId").value))));
+bind("track",async()=>{const path="/api/orders/"+encodeURIComponent($("orderId").value);const result=await api(path);let capability;try{capability=await api("/api/delivery/capabilities");}catch{}if(capability?.dispatch_enabled)result.delivery=(await api(path+"/delivery")).delivery;out(result)});
 bind("items",async()=>out(await api("/api/orders/"+encodeURIComponent($("orderId").value)+"/items")));
 bind("timeline",async()=>out(await api("/api/orders/"+encodeURIComponent($("orderId").value)+"/history")));
 }
@@ -89,6 +92,7 @@ bind("saveMenu",async()=>{
   await viewOwnerMenu();
   out("Menu saved: "+desired.length+" available items; "+removed+" made unavailable. Existing order history preserved.");
 });
+bind("requestDelivery",async()=>out(await api("/api/owner/orders/"+encodeURIComponent(required("orderId","Order ID"))+"/delivery","POST",{})));
 bind("myOrders",async()=>out(await api("/api/owner/orders")));
 bind("orderItems",async()=>out(await api("/api/orders/"+encodeURIComponent($("orderId").value)+"/items")));
 bind("updateStatus",async()=>out(await api("/api/owner/orders/"+encodeURIComponent($("orderId").value)+"/status","PATCH",{status:$("status").value,note:$("note").value})));

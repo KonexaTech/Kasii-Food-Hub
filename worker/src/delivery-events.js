@@ -1,3 +1,4 @@
+import {notifyDelivery} from './delivery-notifications.js';
 // Server-to-server delivery callbacks; disabled until reviewed schema and secrets exist.
 const source='kasii',prefix='kfh';
 const states=['searching','assigned','ready','collected','enroute','delivered','cancelled','failed'];
@@ -25,14 +26,18 @@ export async function deliveryEvents(request,env,withDb){
   await db.query('BEGIN');try{
    const order=(await db.query('SELECT id,fulfillment_type FROM '+prefix+'_orders WHERE id=$1 FOR UPDATE',[data.source_order_id])).rows[0];
    if(!order||order.fulfillment_type!=='delivery'){await db.query('ROLLBACK');return json({error:'Delivery order not found'},404);}
+   const dispatched=(await db.query('SELECT job_id,intake_status FROM '+prefix+'_delivery_dispatches WHERE order_id=$1',[data.source_order_id])).rows[0];
+   if(dispatched&&dispatched.job_id!==data.job_id){await db.query('ROLLBACK');return json({error:'Delivery job conflict'},409);}
    const previous=(await db.query('SELECT payload_hash FROM '+prefix+'_delivery_events WHERE event_id=$1',[data.event_id])).rows[0];
    if(previous){await db.query('ROLLBACK');return previous.payload_hash===digest?json({acknowledged_event_id:data.event_id}):json({error:'Event identity conflict'},409);}
    const current=(await db.query('SELECT job_id,sequence,status FROM '+prefix+'_delivery_state WHERE order_id=$1 FOR UPDATE',[data.source_order_id])).rows[0];
    if(current&&current.job_id!==data.job_id){await db.query('ROLLBACK');return json({error:'Delivery job conflict'},409);}
+   if(current&&BigInt(data.sequence)===BigInt(current.sequence)){await db.query('ROLLBACK');return json({error:'Delivery sequence conflict'},409);}
    const newer=!current||BigInt(data.sequence)>BigInt(current.sequence);
    if(newer&&current&&((['delivered','cancelled','failed'].includes(current.status)&&data.status!==current.status)||(!['cancelled','failed'].includes(data.status)&&states.indexOf(data.status)<states.indexOf(current.status)))){await db.query('ROLLBACK');return json({error:'Delivery state conflict'},409);}
    await db.query('INSERT INTO '+prefix+'_delivery_events(event_id,order_id,job_id,sequence,status,occurred_at,payload_hash) VALUES($1,$2,$3,$4,$5,$6,$7)',[data.event_id,data.source_order_id,data.job_id,data.sequence,data.status,data.occurred_at,digest]);
    if(newer)await db.query('INSERT INTO '+prefix+'_delivery_state(order_id,job_id,sequence,status,occurred_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(order_id) DO UPDATE SET sequence=EXCLUDED.sequence,status=EXCLUDED.status,occurred_at=EXCLUDED.occurred_at',[data.source_order_id,data.job_id,data.sequence,data.status,data.occurred_at]);
+   if(newer&&data.status!==(current?.status||dispatched?.intake_status))await notifyDelivery(db,data.source_order_id,data.status);
    await db.query('COMMIT');return json({acknowledged_event_id:data.event_id});
   }catch(error){await db.query('ROLLBACK');throw error;}
  });}catch{return json({error:'Delivery callback persistence unavailable'},503);}

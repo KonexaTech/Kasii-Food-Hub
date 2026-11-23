@@ -26,7 +26,7 @@ const latitude = n => Number.isFinite(n) && Math.abs(n) <= 90;
 const longitude = n => Number.isFinite(n) && Math.abs(n) <= 180;
 function authorizedQuote(row, now) {
   if (!row || row.approved !== true || row.fulfillment_type !== "delivery" ||
-      !["preparing", "out_for_delivery"].includes(row.status) ||
+      !["ready_for_collection", "out_for_delivery"].includes(row.status) ||
       row.dispatch_ready !== true || !cleanSubject(row.customer_subject) ||
       !cleanSubject(row.owner_subject) || !cleanSubject(row.approved_by) ||
       !Number.isFinite(Date.parse(row.approved_at)) || Date.parse(row.approved_at) > now ||
@@ -57,6 +57,9 @@ export async function deliveryOrderLookup(request, env, withDb, now = Date.now()
     return json({ error: "unauthorized" }, 401);
   const orderId = path.slice("/internal/delivery/orders/".length);
   if (!uuid.test(orderId)) return json({ error: "not_found" }, 404);
+  return eligibleDeliverySnapshot(env,withDb,orderId.toLowerCase(),now);
+}
+export async function eligibleDeliverySnapshot(env,withDb,orderId,now=Date.now()){
   let issuer;
   try {
     const auth = new URL(env.NEON_AUTH_URL || env.NEON_AUTH_BASE_URL || "");

@@ -8,7 +8,7 @@ const env = { DELIVERY_SOURCE_LOOKUP_ENABLED: "true", DELIVERY_LOOKUP_TOKEN: tok
 const now = Date.parse("2026-11-23T12:00:00Z");
 const valid = () => ({
   id, customer_subject: "customer-1", owner_subject: "owner-1",
-  fulfillment_type: "delivery", status: "preparing", approved: true,
+  fulfillment_type: "delivery", status: "ready_for_collection", approved: true,
   delivery_cents: 1500, pickup_lat: -27.76, pickup_lon: 30.03,
   dropoff_lat: -27.77, dropoff_lon: 30.04,
   route_distance_m: 1700, weight_grams: 2000, currency: "ZAR",
@@ -68,7 +68,7 @@ test("kasii validated trusted order returns exact-source motorcycle job and no p
 test("kasii lookup denies missing quote and invalid, unapproved, unpaid, early or mismatched snapshots", async () => {
   assert.equal((await call(null)).response.status, 404);
   for (const patch of [
-    { approved: false }, { fulfillment_type: "pickup" }, { status: "pending" },
+    { approved: false }, { fulfillment_type: "pickup" }, { status: "pending" }, { status: "preparing" },
     { status: "completed" }, { dispatch_ready: false }, { payment_verified: false },
     { payment_verified: false, cash_on_delivery_approved: false },
     { fee_cents: 100 }, { payout_cents: 50000 },

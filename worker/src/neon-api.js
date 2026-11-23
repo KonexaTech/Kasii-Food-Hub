@@ -1,3 +1,4 @@
+import {dispatchDelivery,deliveryTracking,deliveryCapabilities} from './delivery-dispatch.js';
 import { verifiedNeonSubject, isNeonAdmin } from "./neon-auth.js";
 import { isOwnerOnlyRoute } from "./role-policy.js";
 import { validateCheckout } from "./checkout-validation.js";
@@ -17,6 +18,9 @@ export async function neonApi(request,env,withDb){
   if(!subject)return json({error:"Sign in with Neon Auth"},401);
   // Admin accounts must never act as shop owners, even by calling the API directly.
   if(isOwnerOnlyRoute(path)&&await isNeonAdmin(env,withDb,subject))return json({error:"Administrator accounts cannot use shop-owner functions. Sign in using a separate owner account."},403);
+  if(method==='GET'&&path==='/api/delivery/capabilities')return json(deliveryCapabilities(env));
+  const deliveryRoute=/^\/api\/(owner\/)?orders\/([a-f0-9-]{36})\/delivery$/.exec(path);
+  if(deliveryRoute&&uuid.test(deliveryRoute[2])){if(method==='POST'&&deliveryRoute[1])return dispatchDelivery(env,withDb,deliveryRoute[2],subject);if(method==='GET'&&!deliveryRoute[1])return deliveryTracking(env,withDb,deliveryRoute[2],subject);return json({error:'Method not allowed'},405);}
   if(method==="GET"&&path==="/api/me")return json({subject,admin:await isNeonAdmin(env,withDb,subject)});
   if(method==="GET"&&path==="/api/orders/mine")return json({orders:await withDb(env,async db=>(await db.query("SELECT id,order_number,shop_id,status,total_cents,created_at FROM kfh_orders WHERE customer_subject=$1 ORDER BY created_at DESC LIMIT 100",[subject])).rows)});
   if(method==="GET"&&path==="/api/owner/shops")return json({shops:await withDb(env,async db=>(await db.query("SELECT id,name,area,address,phone,approved FROM kfh_shops WHERE owner_subject=$1 ORDER BY created_at DESC LIMIT 50",[subject])).rows)});
