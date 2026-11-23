@@ -5,7 +5,9 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "workers_dev": true,
+  // Fail-closed private QA: no public workers.dev or preview URL before Access review.
+  "workers_dev": false,
+  "preview_urls": false,
   "account_id": "74fdd987dfadfdbb7322d9fc7f705499",
   "vars": {
     "NEON_ONLY_MODE": "true",
