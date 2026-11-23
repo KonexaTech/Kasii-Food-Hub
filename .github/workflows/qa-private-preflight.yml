@@ -34,7 +34,13 @@ jobs:
           let db;
           try { db = new URL(raw); } catch { stop('NEON_DATABASE_URL malformed'); }
           if (!['postgres:', 'postgresql:'].includes(db.protocol)) stop('Database URL is not PostgreSQL');
-          if (!cfg.vars?.EXPECTED_NEON_HOST || db.hostname.toLowerCase() !== cfg.vars.EXPECTED_NEON_HOST.toLowerCase()) stop('Database URL host is not the isolated QA Neon branch');
+          const actualHost = db.hostname.toLowerCase();
+          const expectedQaHost = String(cfg.vars?.EXPECTED_NEON_HOST || '').toLowerCase();
+          const isExpectedQaHost = Boolean(expectedQaHost) && actualHost === expectedQaHost;
+          const isProductionHost = actualHost === 'ep-broad-paper-bduk5624.c-8.us-east-2.aws.neon.tech';
+          console.log('Neon database URL matches isolated QA branch: ' + isExpectedQaHost);
+          console.log('Neon database URL matches production branch: ' + isProductionHost);
+          if (!isExpectedQaHost) stop(isProductionHost ? 'BLOCKED: NEON_DATABASE_URL points to production. Do not deploy.' : 'NEON_DATABASE_URL does not match this app isolated QA branch.');
           console.log('Cloudflare deployment token: present (value hidden).');
           console.log('Neon connection: present and configured QA host matches (value hidden).');
           console.log('Worker route configuration: private/fail-closed.');
