@@ -4,7 +4,8 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   use: { baseURL: 'http://127.0.0.1:4173', browserName: 'chromium',
-    viewport: { width: 390, height: 844 } },
+    viewport: { width: 390, height: 844 },
+    launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox'] } : {} },
   webServer: {
     command: 'npm run dev -- --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',

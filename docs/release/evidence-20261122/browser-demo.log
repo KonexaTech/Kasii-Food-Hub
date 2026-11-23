@@ -1,0 +1,17 @@
+
+> kasii-food-hub@0.2.0 test:e2e
+> playwright test --workers=1
+
+[WebServer] (node:5434) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:5453) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 e2e/workflow.spec.js:3:1 › customer searches, orders, tracks and sees owner status updates (7.0s)
+  ✓  2 e2e/workflow.spec.js:35:1 › business registration waits for admin approval before being listed (6.1s)
+  ✓  3 e2e/workflow.spec.js:58:1 › owner can add a menu product and change availability in a popup (6.2s)
+  ✓  4 e2e/workflow.spec.js:71:1 › approved photographic home opens a guest checkout and routes the order to the correct dashboards (9.8s)
+
+  4 passed (41.1s)

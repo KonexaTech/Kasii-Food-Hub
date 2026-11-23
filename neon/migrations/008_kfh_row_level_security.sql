@@ -1,3 +1,14 @@
+-- Existing policy definitions require ENABLE as well as FORCE on a fresh database.
+ALTER TABLE public.kfh_admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_shops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_menu_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_order_status_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_commission_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_commission_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kfh_shop_applications ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS kfh_self_read ON public.kfh_admins;
 CREATE POLICY kfh_self_read ON public.kfh_admins FOR SELECT USING (subject=NULLIF(current_setting('app.current_subject', true),''));
 DROP POLICY IF EXISTS kfh_marketplace_read ON public.kfh_shops;
@@ -19,17 +30,17 @@ CREATE POLICY kfh_customer_insert ON public.kfh_orders FOR INSERT WITH CHECK (cu
 DROP POLICY IF EXISTS kfh_owner_update ON public.kfh_orders;
 CREATE POLICY kfh_owner_update ON public.kfh_orders FOR UPDATE USING (EXISTS (SELECT 1 FROM public.kfh_shops s WHERE s.id=shop_id AND s.owner_subject=NULLIF(current_setting('app.current_subject', true),'')) OR EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),''))) WITH CHECK (EXISTS (SELECT 1 FROM public.kfh_shops s WHERE s.id=shop_id AND s.owner_subject=NULLIF(current_setting('app.current_subject', true),'')) OR EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')));
 DROP POLICY IF EXISTS kfh_item_read ON public.kfh_order_items;
-CREATE POLICY kfh_item_read ON public.kfh_order_items FOR SELECT USING (EXISTS (SELECT 1 FROM public.kfh_orders o JOIN public.kfh_shops s ON s.id=o.shop_id WHERE o.id=order_id AND (o.customer_subject=NULLIF(current_setting('app.current_subject', true),'') OR s.owner_subject=NULLIF(current_setting('app.current_subject', true),'') OR EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')))));
+CREATE POLICY kfh_item_read ON public.kfh_order_items FOR SELECT USING (EXISTS (SELECT 1 FROM public.kfh_orders o LEFT JOIN public.kfh_shops s ON s.id=o.shop_id WHERE o.id=order_id AND (o.customer_subject=NULLIF(current_setting('app.current_subject', true),'') OR s.owner_subject=NULLIF(current_setting('app.current_subject', true),'') OR EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')))));
 DROP POLICY IF EXISTS kfh_customer_insert ON public.kfh_order_items;
 CREATE POLICY kfh_customer_insert ON public.kfh_order_items FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.kfh_orders o WHERE o.id=order_id AND o.customer_subject=NULLIF(current_setting('app.current_subject', true),'')));
 DROP POLICY IF EXISTS kfh_event_read ON public.kfh_order_status_events;
-CREATE POLICY kfh_event_read ON public.kfh_order_status_events FOR SELECT USING (EXISTS (SELECT 1 FROM public.kfh_orders o JOIN public.kfh_shops s ON s.id=o.shop_id WHERE o.id=order_id AND (o.customer_subject=NULLIF(current_setting('app.current_subject', true),'') OR s.owner_subject=NULLIF(current_setting('app.current_subject', true),'') OR EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')))));
+CREATE POLICY kfh_event_read ON public.kfh_order_status_events FOR SELECT USING (EXISTS (SELECT 1 FROM public.kfh_orders o LEFT JOIN public.kfh_shops s ON s.id=o.shop_id WHERE o.id=order_id AND (o.customer_subject=NULLIF(current_setting('app.current_subject', true),'') OR s.owner_subject=NULLIF(current_setting('app.current_subject', true),'') OR EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')))));
 DROP POLICY IF EXISTS kfh_event_insert ON public.kfh_order_status_events;
 CREATE POLICY kfh_event_insert ON public.kfh_order_status_events FOR INSERT WITH CHECK (actor_subject=NULLIF(current_setting('app.current_subject', true),'') AND (EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')) OR EXISTS (SELECT 1 FROM public.kfh_orders o JOIN public.kfh_shops s ON s.id=o.shop_id WHERE o.id=order_id AND (o.customer_subject=NULLIF(current_setting('app.current_subject', true),'') OR s.owner_subject=NULLIF(current_setting('app.current_subject', true),'')))));
 DROP POLICY IF EXISTS kfh_commission_admin_read ON public.kfh_commission_entries;
 CREATE POLICY kfh_commission_admin_read ON public.kfh_commission_entries FOR SELECT USING (EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')));
 DROP POLICY IF EXISTS kfh_commission_completed_insert ON public.kfh_commission_entries;
-CREATE POLICY kfh_commission_completed_insert ON public.kfh_commission_entries FOR INSERT WITH CHECK (false)
+CREATE POLICY kfh_commission_completed_insert ON public.kfh_commission_entries FOR INSERT WITH CHECK (false);
 DROP POLICY IF EXISTS kfh_commission_payment_admin ON public.kfh_commission_payments;
 CREATE POLICY kfh_commission_payment_admin ON public.kfh_commission_payments FOR ALL USING (EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),''))) WITH CHECK (EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')));
 DROP POLICY IF EXISTS kfh_notification_read ON public.kfh_notifications;
@@ -37,7 +48,7 @@ CREATE POLICY kfh_notification_read ON public.kfh_notifications FOR SELECT USING
 DROP POLICY IF EXISTS kfh_notification_update ON public.kfh_notifications;
 CREATE POLICY kfh_notification_update ON public.kfh_notifications FOR UPDATE USING (recipient_subject=NULLIF(current_setting('app.current_subject', true),'')) WITH CHECK (recipient_subject=NULLIF(current_setting('app.current_subject', true),''));
 DROP POLICY IF EXISTS kfh_notification_insert ON public.kfh_notifications;
-CREATE POLICY kfh_notification_insert ON public.kfh_notifications FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.kfh_admins ad WHERE ad.subject=NULLIF(current_setting('app.current_subject', true),'')) OR (order_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.kfh_orders o WHERE o.id=order_id AND o.customer_subject=NULLIF(current_setting('app.current_subject', true),''))) OR (order_id IS NULL AND EXISTS (SELECT 1 FROM public.kfh_shop_applications ap WHERE ap.applicant_subject=recipient_subject AND EXISTS (SELECT 1 FROM public.kfh_admins ad WHERE ad.subject=NULLIF(current_setting('app.current_subject', true),'')))))
+CREATE POLICY kfh_notification_insert ON public.kfh_notifications FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.kfh_admins ad WHERE ad.subject=NULLIF(current_setting('app.current_subject', true),'')) OR (order_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.kfh_orders o WHERE o.id=order_id AND o.customer_subject=NULLIF(current_setting('app.current_subject', true),''))) OR (order_id IS NULL AND EXISTS (SELECT 1 FROM public.kfh_shop_applications ap WHERE ap.applicant_subject=recipient_subject AND EXISTS (SELECT 1 FROM public.kfh_admins ad WHERE ad.subject=NULLIF(current_setting('app.current_subject', true),'')))));
 DROP POLICY IF EXISTS kfh_application_read ON public.kfh_shop_applications;
 CREATE POLICY kfh_application_read ON public.kfh_shop_applications FOR SELECT USING (applicant_subject=NULLIF(current_setting('app.current_subject', true),'') OR EXISTS (SELECT 1 FROM public.kfh_admins a WHERE a.subject=NULLIF(current_setting('app.current_subject', true),'')));
 DROP POLICY IF EXISTS kfh_application_insert ON public.kfh_shop_applications;

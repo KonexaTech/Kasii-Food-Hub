@@ -9,11 +9,20 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix worker ci --no-audit --no-fund
       - run: npm run check
       - run: npm run build
-      - run: npm --prefix worker install --no-audit --no-fund
       - run: npm --prefix worker run check
+      - name: Build separate source-bound QA frontend
+        run: npm run build:qa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: isolated-qa-frontend-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist-qa
+          retention-days: 14

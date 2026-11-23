@@ -1,0 +1,9 @@
+# Delivery callback receiver (disabled)
+
+`DELIVERY_CALLBACKS_ENABLED=false` preserves existing commerce behavior. Proposed migration 012 stores delivery events and current delivery state separately; it does not mutate order completion, payment, commission or customer totals. No remote migration has been applied. Review the actual API database role and required server-only table grants before staging activation. RLS has no browser/user policies. Do not grant these tables to client-facing roles.
+
+Contract: POST /internal/delivery/events; source-specific HMAC-SHA256 using the shared Delivery v1 canonical request, timestamp within 300 seconds and minimum 32-byte server-only secret. The originating order must exist locally and require delivery. Durable event IDs reject altered duplicates, a single job identity is pinned to each order, increasing decimal sequences advance state, stale events acknowledge without reverting state, and terminal states cannot restart implicitly. Callback success acknowledges only persisted events. Failed database work returns unavailable and rolls back. No customer addresses or personal information are included.
+
+Activation is blocked on reviewed staging migration, least-privilege runtime grants, securely configured per-app secrets and end-to-end source lookup/intake acceptance. Actual signed producer-to-consumer integration and real-device tracking are NOT TESTED. Status visibility/UI and source-order lookup are separate unfinished work; do not imply delivery is available from this receiver alone.
+
+Rollback: disable the feature flag and remove its private secret if appropriate; redeploy the previous Worker version. Preserve both tables and audit events. Do not drop stored delivery records after testing begins. Existing ordering, payments and tables remain intact.
