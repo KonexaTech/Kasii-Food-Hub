@@ -34,15 +34,19 @@ jobs:
           let db;
           try { db = new URL(raw); } catch { stop('NEON_DATABASE_URL malformed'); }
           if (!['postgres:', 'postgresql:'].includes(db.protocol)) stop('Database URL is not PostgreSQL');
-          const actualHost = db.hostname.toLowerCase();
-          const expectedQaHost = String(cfg.vars?.EXPECTED_NEON_HOST || '').toLowerCase();
+          const normalizeHost = host => host.replace(/-pooler(?=\.c-)/, '');
+          const actualHost = normalizeHost(db.hostname.toLowerCase());
+          const expectedQaHost = normalizeHost(String(cfg.vars?.EXPECTED_NEON_HOST || '').toLowerCase());
           const isExpectedQaHost = Boolean(expectedQaHost) && actualHost === expectedQaHost;
-          const isProductionHost = actualHost === 'ep-broad-paper-bduk5624.c-8.us-east-2.aws.neon.tech';
-          console.log('Neon database URL matches isolated QA branch: ' + isExpectedQaHost);
-          console.log('Neon database URL matches production branch: ' + isProductionHost);
-
+          const isProductionHost = actualHost === normalizeHost('ep-broad-paper-bduk5624.c-8.us-east-2.aws.neon.tech');
+          const expectedRole = 'kfh_worker';
+          const actualRole = decodeURIComponent(db.username);
+          const usesLeastPrivilegeRole = actualRole === expectedRole;
+          console.log('Neon database URL matches isolated QA branch (direct or pooled): ' + isExpectedQaHost);
+          console.log('Neon database URL matches production branch (direct or pooled): ' + isProductionHost);
+          console.log('Neon database URL uses dedicated restricted worker role: ' + usesLeastPrivilegeRole);
           const knownAccountHosts = ["ep-broad-paper-bduk5624.c-8.us-east-2.aws.neon.tech","ep-calm-sea-bdye9zrl.c-8.us-east-2.aws.neon.tech","ep-long-surf-be04z61a.c-9.us-east-2.aws.neon.tech","ep-lingering-sun-bekugkhi.c-9.us-east-2.aws.neon.tech","ep-young-glitter-bgm0izt0.c-9.eu-central-1.aws.neon.tech","ep-lively-leaf-za5rtfhs.c-2.eu-west-2.aws.neon.tech","ep-lively-morning-zapnzgbl.c-2.eu-west-2.aws.neon.tech"];
-          const matchesKnownAccountBranch = knownAccountHosts.includes(actualHost);
+          const matchesKnownAccountBranch = knownAccountHosts.some(host => normalizeHost(host) === actualHost);
           console.log('Neon URL matches an endpoint in the connected Neon account: ' + matchesKnownAccountBranch);
           const tokenCheck = await fetch('https://api.cloudflare.com/client/v4/user/tokens/verify', { headers: { Authorization: 'Bearer ' + process.env.CLOUDFLARE_API_TOKEN } });
           let tokenResult = null;
@@ -51,6 +55,7 @@ jobs:
           console.log('Cloudflare API token verified active: ' + tokenActive);
           if (!tokenActive) stop('Cloudflare API token is not valid/active for Cloudflare API requests.');
           console.log('Cloudflare deployment token: present and active (value hidden).');
+          if (!usesLeastPrivilegeRole) stop('NEON_DATABASE_URL does not use the dedicated restricted worker role.');
           if (!isExpectedQaHost) stop(isProductionHost ? 'BLOCKED: NEON_DATABASE_URL points to production. Do not deploy.' : (matchesKnownAccountBranch ? 'NEON_DATABASE_URL points to another known branch/project, not this app QA branch.' : 'NEON_DATABASE_URL does not match any known branch in this Neon account.'));
           console.log('Neon connection: present and configured QA host matches (value hidden).');
           console.log('Worker route configuration: private/fail-closed.');
