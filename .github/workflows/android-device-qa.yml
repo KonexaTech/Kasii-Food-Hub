@@ -1,7 +1,7 @@
 name: Isolated Android staging APK
 on:
   push:
-    branches: ['qa/kasii-android-device-20261124']
+    branches: ['qa/kasii-branded-icon-20261124']
   pull_request:
     branches: ['fix/kasii-qa-build-isolation-20261123']
     paths: ['.github/workflows/android-device-qa.yml']
@@ -47,6 +47,14 @@ jobs:
           cd android
           sed -i 's/minSdkVersion = [0-9][0-9]*/minSdkVersion = 26/' variables.gradle
           grep -q 'minSdkVersion = 26' variables.gradle
+          # Use the existing approved web brand, not the Capacitor template launcher.
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends librsvg2-bin python3-pil
+          mkdir -p app/src/main/res/drawable-nodpi
+          rsvg-convert -w 192 -h 192 "$GITHUB_WORKSPACE/icon.svg" -o app/src/main/res/drawable-nodpi/konexa_brand_launcher.png
+          sed -i 's|@mipmap/ic_launcher_round|@drawable/konexa_brand_launcher|g; s|@mipmap/ic_launcher|@drawable/konexa_brand_launcher|g' app/src/main/AndroidManifest.xml
+          grep -q 'android:icon="@drawable/konexa_brand_launcher"' app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@drawable/konexa_brand_launcher"' app/src/main/AndroidManifest.xml
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
       - name: Verify APK identity, signature and provenance
@@ -62,6 +70,30 @@ jobs:
           "$BUILD_TOOLS/aapt" dump badging "$APK" > device-artifact/package.txt
           grep -q "package: name='za.co.kasiifoodhub.staging'" device-artifact/package.txt
           grep -q "sdkVersion:'26'" device-artifact/package.txt
+          # Verify the actual APK's launcher image matches the rendered repository artwork.
+          /usr/bin/python3 - "$APK" device-artifact/package.txt "$RUNNER_TEMP/device-wrapper/android/app/src/main/res/drawable-nodpi/konexa_brand_launcher.png" <<'PY'
+          import io, re, sys, zipfile, hashlib
+          from PIL import Image, ImageChops
+          apk, badging, expected = sys.argv[1:]
+          text = open(badging).read()
+          paths = set(re.findall(r"^application-icon-[0-9]+:'([^']+)'", text, re.M))
+          if not paths:
+              raise SystemExit("APK launcher resource not found")
+          source = Image.open(expected).convert("RGBA")
+          with zipfile.ZipFile(apk) as archive:
+              for path in sorted(paths):
+                  actual = Image.open(io.BytesIO(archive.read(path))).convert("RGBA")
+                  assert actual.size == source.size, (path, actual.size, source.size)
+                  for color in ("black", "white"):
+                      bg = Image.new("RGBA", source.size, color)
+                      a = Image.alpha_composite(bg, actual).convert("RGB")
+                      b = Image.alpha_composite(bg, source).convert("RGB")
+                      assert ImageChops.difference(a,b).getbbox() is None, path
+          with open("device-artifact/launcher-icon.txt","w") as out:
+              out.write("PASS: APK launcher matches repository artwork\\n")
+              out.write("Rendered PNG SHA256: " + hashlib.sha256(open(expected,"rb").read()).hexdigest() + "\\n")
+          PY
+          cp "$RUNNER_TEMP/device-wrapper/android/app/src/main/res/drawable-nodpi/konexa_brand_launcher.png" device-artifact/launcher-icon.png
           sha256sum "$APK" > device-artifact/sha256.txt
           printf '%s\n' "$EXPECTED_SOURCE" > device-artifact/source-commit.txt
           printf '%s\n' 'QA debug build only; physical installation, Access login and live backend NOT VERIFIED. Not for production.' > device-artifact/READ-ME.txt
