@@ -29,7 +29,11 @@ async function authProxy(request, url) {
   for (const key of ["accept", "accept-language", "content-type", "cookie", "user-agent",
                      "authorization", "x-neon-auth-session-verifier"]) {
     const value = request.headers.get(key);
-    if (value) headers.set(key, value);
+    if (key === "cookie" && value) {
+      // Access credentials belong to the gateway, not the Neon identity service.
+      const filtered=value.split(";").map(part=>part.trim()).filter(part=>!/^CF_(?:Authorization|AppSession|Binding|Session|Access)(?:=|_)/i.test(part)).join("; ");
+      if(filtered)headers.set(key,filtered);
+    }else if (value) headers.set(key, value);
   }
   if (origin) headers.set("origin", origin);
   const target = new URL(AUTH_UPSTREAM + url.pathname.slice("/auth".length) + url.search);
@@ -79,6 +83,14 @@ return {
     const origin = request.headers.get("Origin");
     if (origin && origin !== url.origin)
       return new Response("Origin not allowed", {status:403});
+    if(MUTATING.has(request.method)){
+      if(request.headers.get("sec-fetch-site")==="cross-site")return new Response("Cross-site request denied",{status:403});
+      try{
+        const response=await env.QA_API.fetch(API_UPSTREAM+'/api/health',{headers:{accept:'application/json'},cache:'no-store',redirect:'manual'});
+        const health=await response.json();
+        if(!response.ok||health?.ok!==true||health.backend!=='neon'||health.authConfigured!==true||health.sourceCommit!==sourceCommit)throw Error('Source mismatch');
+      }catch{return Response.json({error:'Private QA backend source mismatch or unavailable'},{status:503,headers:{'cache-control':'no-store'}});}
+    }
     // Forward only API request headers; never forward Access tokens or session cookies.
     const headers = new Headers();
     for(const key of ['accept','content-type','authorization']){const value=request.headers.get(key);if(value)headers.set(key,value);}
