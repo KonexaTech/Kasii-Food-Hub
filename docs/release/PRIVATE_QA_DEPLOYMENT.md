@@ -1,0 +1,5 @@
+# Private QA deployment
+
+Manual only, from `fix/kasii-qa-build-isolation-20261123`, exact approved source input and explicit private-deploy confirmation. GitHub environment `private-qa` requires `QA_NEON_DATABASE_URL` (dedicated restricted QA role) and `CLOUDFLARE_API_TOKEN` with required read/Worker/Pages scopes. Never use production credentials. The preflight verifies private routes, service bindings, Access policy and database identity. Existing validation-only workflow remains. Before running, configure Pages production branch to `fix/kasii-qa-build-isolation-20261123` using the protected existing project; no public domain or alternate preview may be enabled. Verify live source and authenticated order acceptance after upload. Do not enable delivery/custom cake/payment flags until separately approved. No credentials are stored in Git.
+
+The newer private proxy changes already merged in the base are retained. This workflow is staging-only; do not merge application code to main to expose a workflow. GitHub manual workflow dispatch availability must be checked separately if this workflow is not on the default branch.
