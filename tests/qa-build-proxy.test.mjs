@@ -9,6 +9,7 @@ import { neonApi } from '../worker/src/neon-api.js';
 const target=JSON.parse(await readFile(new URL('../staging/qa-targets.json',import.meta.url),'utf8'));
 const sourceCommit='a'.repeat(40);
 const worker=createQaProxy({...target,sourceCommit});
+const bound={QA_API:{fetch:(...args)=>globalThis.fetch(...args)}};
 async function mockedFetch(handler,run){const old=globalThis.fetch;globalThis.fetch=handler;try{await run();}finally{globalThis.fetch=old;}}
 test('QA transport keeps session cookies at own Auth upstream, preserves HttpOnly and passes only JWT to API',async()=>{
  const calls=[];
@@ -16,8 +17,8 @@ test('QA transport keeps session cookies at own Auth upstream, preserves HttpOnl
   const auth=await worker.fetch(new Request(target.siteOrigin+'/auth/token',{headers:{Cookie:'__Secure-session=fixture'}}),{});
   assert.equal(calls[0].url,target.authUrl+'/token');assert.equal(calls[0].headers.get('cookie'),'__Secure-session=fixture');
   const cookie=auth.headers.get('set-cookie');assert.match(cookie,/HttpOnly/);assert.match(cookie,/Secure/);assert.match(cookie,/SameSite=Lax/);assert.match(cookie,/Path=\//);assert.doesNotMatch(cookie,/Domain=|Partitioned/);
-  await worker.fetch(new Request(target.siteOrigin+'/api/me',{headers:{Authorization:'Bearer fixture-signed-jwt',Cookie:'__Secure-session=fixture'}}),{});
-  assert.equal(calls[1].url,target.apiUrl+'/api/me');assert.equal(calls[1].headers.get('cookie'),null);assert.equal(calls[1].headers.get('authorization'),'Bearer fixture-signed-jwt');
+  await worker.fetch(new Request(target.siteOrigin+'/api/me',{headers:{Authorization:'Bearer fixture-signed-jwt',Cookie:'__Secure-session=fixture','CF-Access-Jwt-Assertion':'access-fixture'}}),bound);
+  assert.equal(calls[1].url,target.apiUrl+'/api/me');assert.equal(calls[1].headers.get('cookie'),null);assert.equal(calls[1].headers.get('cf-access-jwt-assertion'),null);assert.equal(calls[1].headers.get('authorization'),'Bearer fixture-signed-jwt');
  });
 });
 test('QA proxy refuses foreign origins and cross-site auth mutations before fetching',async()=>{
@@ -31,10 +32,10 @@ test('QA proxy refuses foreign origins and cross-site auth mutations before fetc
 });
 test('QA health fails closed for unknown/stale source, missing auth, unavailable DB and malformed upstream',async()=>{
  for(const health of [{ok:true,backend:'neon',authConfigured:true},{ok:true,backend:'neon',authConfigured:true,sourceCommit:'b'.repeat(40)},{ok:true,backend:'neon',authConfigured:false,sourceCommit},{ok:false,backend:'neon',authConfigured:true,sourceCommit},null]){
-  await mockedFetch(async()=>Response.json(health),async()=>assert.equal((await worker.fetch(new Request(target.siteOrigin+'/qa-health'),{})).status,503));
+  await mockedFetch(async()=>Response.json(health),async()=>assert.equal((await worker.fetch(new Request(target.siteOrigin+'/qa-health'),bound)).status,503));
  }
  await mockedFetch(async()=>Response.json({ok:true,backend:'neon',authConfigured:true,sourceCommit}),async()=>{
-  const response=await worker.fetch(new Request(target.siteOrigin+'/qa-health'),{});assert.equal(response.status,200);assert.equal((await response.json()).status,'connected-source-matched');assert.equal(response.headers.get('cache-control'),'no-store');
+  const response=await worker.fetch(new Request(target.siteOrigin+'/qa-health'),bound);assert.equal(response.status,200);assert.equal((await response.json()).status,'connected-source-matched');assert.equal(response.headers.get('cache-control'),'no-store');
  });
 });
 test('API health exposes only a valid public deployment source marker',async()=>{
@@ -64,4 +65,13 @@ test('separate QA build preserves production configuration and contains only app
   const modified={...target,apiUrl:'https://other-app.example'};await writeFile(join(root,'staging/qa-targets.json'),JSON.stringify(modified));
   await assert.rejects(buildQa(root,sourceCommit),/do not match/);
  }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('missing private service binding fails closed without public HTTP fallback',async()=>{
+ let calls=0;
+ await mockedFetch(async()=>{calls++;throw Error('Unexpected public request');},async()=>{
+  assert.equal((await worker.fetch(new Request(target.siteOrigin+'/qa-health'),{})).status,503);
+  assert.equal((await worker.fetch(new Request(target.siteOrigin+'/api/me'),{})).status,503);
+  assert.equal(calls,0);
+ });
 });
