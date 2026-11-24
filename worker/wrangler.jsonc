@@ -5,7 +5,7 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "workers_dev": true,
+  "workers_dev": false,
   "account_id": "74fdd987dfadfdbb7322d9fc7f705499",
   "vars": {
     "NEON_ONLY_MODE": "true",
@@ -15,6 +15,8 @@
     "ALLOWED_ORIGINS": "https://siboniisozulu-alt.github.io,https://kasii-food-hub-neon-staging.pages.dev",
     "DELIVERY_CALLBACKS_ENABLED": "false",
     "DELIVERY_DISPATCH_ENABLED": "false",
-    "DELIVERY_SOURCE_LOOKUP_ENABLED": "false"
-  }
+    "DELIVERY_SOURCE_LOOKUP_ENABLED": "false",
+    "EXPECTED_NEON_ROLE": "kfh_worker"
+  },
+  "preview_urls": false
 }

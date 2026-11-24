@@ -2,6 +2,7 @@ import { deliveryEvents } from "./delivery-events.js";
 import { deliveryOrderLookup } from "./delivery-source-orders.js";
 import { neonApi } from "./neon-api.js";
 import { Client } from "pg";
+import { assertNeonConnectionTarget } from "./neon-host.js";
 import { verifiedNeonSubject } from "./neon-auth.js";
 
 // Neon-only API. Database credentials stay in Worker secrets.
@@ -19,12 +20,8 @@ function allowedOrigin(origin, env) {
 async function withDb(env, callback, request = null) {
   const connectionString = env.HYPERDRIVE?.connectionString || env.DATABASE_URL;
   if (!connectionString) throw new Error("Database binding not configured");
-  if (!env.EXPECTED_NEON_HOST) throw new Error("Expected development database host not configured");
-  let hostname;
-  try { hostname = new URL(connectionString).hostname.toLowerCase(); }
-  catch { throw new Error("Invalid database connection URL"); }
-  if (hostname !== env.EXPECTED_NEON_HOST.toLowerCase())
-    throw new Error("Database target does not match development branch");
+  if (!env.EXPECTED_NEON_HOST || !env.EXPECTED_NEON_ROLE) throw new Error("Expected isolated QA database target is not configured");
+  assertNeonConnectionTarget(connectionString, env.EXPECTED_NEON_HOST, env.EXPECTED_NEON_ROLE);
   const client = new Client({ connectionString, connectionTimeoutMillis: 5000 });
   try {
     await client.connect();
