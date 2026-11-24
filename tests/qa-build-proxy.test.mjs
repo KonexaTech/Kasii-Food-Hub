@@ -14,7 +14,7 @@ async function mockedFetch(handler,run){const old=globalThis.fetch;globalThis.fe
 test('QA transport keeps session cookies at own Auth upstream, preserves HttpOnly and passes only JWT to API',async()=>{
  const calls=[];
  await mockedFetch(async(input,options)=>{calls.push({url:String(input),headers:new Headers(options.headers)});return new Response('{}',{headers:{'set-cookie':'__Secure-session=fixture; Domain=auth.example; Path=/neondb/auth; HttpOnly; Secure; SameSite=None; Partitioned'}});},async()=>{
-  const auth=await worker.fetch(new Request(target.siteOrigin+'/auth/token',{headers:{Cookie:'__Secure-session=fixture'}}),{});
+  const auth=await worker.fetch(new Request(target.siteOrigin+'/auth/token',{headers:{Cookie:'__Secure-session=fixture; CF_Authorization=outer-access; CF_AppSession=outer-session'}}),{});
   assert.equal(calls[0].url,target.authUrl+'/token');assert.equal(calls[0].headers.get('cookie'),'__Secure-session=fixture');
   const cookie=auth.headers.get('set-cookie');assert.match(cookie,/HttpOnly/);assert.match(cookie,/Secure/);assert.match(cookie,/SameSite=Lax/);assert.match(cookie,/Path=\//);assert.doesNotMatch(cookie,/Domain=|Partitioned/);
   await worker.fetch(new Request(target.siteOrigin+'/api/me',{headers:{Authorization:'Bearer fixture-signed-jwt',Cookie:'__Secure-session=fixture','CF-Access-Jwt-Assertion':'access-fixture'}}),bound);

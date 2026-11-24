@@ -29,7 +29,11 @@ async function authProxy(request, url) {
   for (const key of ["accept", "accept-language", "content-type", "cookie", "user-agent",
                      "authorization", "x-neon-auth-session-verifier"]) {
     const value = request.headers.get(key);
-    if (value) headers.set(key, value);
+    if (key === "cookie") {
+      // Never leak the outer Cloudflare Access session to the separate Auth provider.
+      const filtered=(value||"").split(";").map(x=>x.trim()).filter(x=>x&&!/^cf_(authorization|appsession|access[^=]*)=/i.test(x)).join("; ");
+      if(filtered) headers.set(key,filtered);
+    } else if (value) headers.set(key, value);
   }
   if (origin) headers.set("origin", origin);
   const target = new URL(AUTH_UPSTREAM + url.pathname.slice("/auth".length) + url.search);

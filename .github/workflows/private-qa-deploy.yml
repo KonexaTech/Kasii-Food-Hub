@@ -1,0 +1,69 @@
+name: Deploy exact private QA candidate
+on:
+  workflow_dispatch:
+    inputs:
+      approved_source:
+        description: Exact reviewed staging commit SHA (40 hex characters)
+        required: true
+        type: string
+      confirm_private_deploy:
+        description: Authorize private staging deployment only
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: kasii-food-hub-neon-staging-manual-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/fix/kasii-qa-build-isolation-20261123' && inputs.confirm_private_deploy == true
+    environment: private-qa
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix worker ci --no-audit --no-fund
+      - run: npm run check
+      - run: npm --prefix worker run check
+      - run: npm run build:qa
+      - name: Verify exact target and credentials without writes
+        env:
+          APPROVED_SOURCE: ${{ inputs.approved_source }}
+          QA_NEON_DATABASE_URL: ${{ secrets.QA_NEON_DATABASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/private-qa-preflight.mjs
+      - name: Deploy private Worker with exact marker
+        working-directory: worker
+        env:
+          QA_NEON_DATABASE_URL: ${{ secrets.QA_NEON_DATABASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -eu
+          umask 077
+          SECRETS_FILE="$(mktemp)"
+          trap 'rm -f "$SECRETS_FILE"' EXIT
+          node -e 'require("node:fs").writeFileSync(process.argv[1],JSON.stringify({DATABASE_URL:process.env.QA_NEON_DATABASE_URL}))' "$SECRETS_FILE"
+          npx --no-install wrangler deploy --config wrangler.jsonc --var "QA_SOURCE_COMMIT:$GITHUB_SHA" --secrets-file "$SECRETS_FILE"
+      - name: Recheck private protections before publishing staging assets
+        env:
+          APPROVED_SOURCE: ${{ inputs.approved_source }}
+          QA_NEON_DATABASE_URL: ${{ secrets.QA_NEON_DATABASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/private-qa-preflight.mjs
+      - name: Upload matching private Pages candidate
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          BRANCH="$(node -p 'require("./staging/qa-targets.json").siteOrigin')" 
+          test "$BRANCH" = "https://kasii-food-hub-neon-staging.pages.dev"
+          ./worker/node_modules/.bin/wrangler pages deploy dist-qa --project-name=kasii-food-hub-neon-staging --branch=fix/kasii-qa-build-isolation-20261123 --commit-hash="$GITHUB_SHA" --commit-dirty=false
+      - name: Record deployment outcome
+        run: echo "Uploaded staging candidate. Authenticated live acceptance and physical device testing remain NOT VERIFIED."
