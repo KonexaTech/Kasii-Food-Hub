@@ -3,14 +3,15 @@ import { resolve,dirname } from 'node:path';
 import { fileURLToPath,pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-export async function buildQa(root,sourceCommit) {
+export async function buildQa(root,sourceCommit,{outputName="dist-qa"}={}) {
+ if(!/^dist-qa(?:-test-\d+-\d+)?$/.test(outputName))throw Error("Invalid isolated QA output directory");
  if(!/^[a-f0-9]{40}$/.test(sourceCommit||''))throw Error('Exact source commit required');
  const target=JSON.parse(await readFile(resolve(root,'staging/qa-targets.json'),'utf8'));
  const worker=JSON.parse(await readFile(resolve(root,'worker/wrangler.jsonc'),'utf8'));
  const expectedApi='https://'+worker.name+'.siboniisozulu.workers.dev';
  if(!worker.name.endsWith('-api-qa')||target.apiUrl!==expectedApi||target.authUrl!==worker.vars.NEON_AUTH_URL||!worker.vars.ALLOWED_ORIGINS.split(',').includes(target.siteOrigin))throw Error('QA endpoints do not match this app isolated configuration');
  for(const value of Object.values(target)){const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash)throw Error('Public QA endpoints only');}
- const output=resolve(root,'dist-qa');await rm(output,{recursive:true,force:true});await mkdir(output);
+ const output=resolve(root,outputName);await rm(output,{recursive:true,force:true});await mkdir(output);
  const files=['neon-customer.html','neon-owner.html','neon-admin.html','neon-password-reset.html','neon-reset-password.html','menu-text.mjs','premium.css','icon.svg','manifest.json'];
  for(const file of files)await copyFile(resolve(root,file),resolve(output,file));
  await copyFile(resolve(root,'neon-customer.html'),resolve(output,'index.html'));

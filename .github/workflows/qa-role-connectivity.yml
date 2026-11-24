@@ -1,0 +1,61 @@
+name: Read-only private QA role and token connectivity
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa-role-connectivity:
+    name: No-write QA credential and DB role probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked Worker dependencies
+        working-directory: worker
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify restricted Neon QA connection and Cloudflare token without deployment
+        working-directory: worker
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import pg from 'pg';
+          import { assertNeonConnectionTarget } from './src/neon-host.js';
+          const fail = message => { console.error('BLOCKED: ' + message); process.exit(1); };
+          const cfg=JSON.parse(readFileSync('wrangler.jsonc','utf8'));
+          if(cfg.workers_dev!==false || cfg.preview_urls!==false) fail('QA public Worker routes are not disabled.');
+          if(!process.env.NEON_DATABASE_URL) fail('NEON_DATABASE_URL repository secret is not available.');
+          if(!process.env.CLOUDFLARE_API_TOKEN) fail('CLOUDFLARE_API_TOKEN repository secret is not available.');
+          try {
+            assertNeonConnectionTarget(process.env.NEON_DATABASE_URL,cfg.vars.EXPECTED_NEON_HOST,cfg.vars.EXPECTED_NEON_ROLE);
+          } catch { fail('Database secret must use the exact QA branch and dedicated restricted Worker role, never owner or production.'); }
+          const tokenCheck=await fetch('https://api.cloudflare.com/client/v4/user/tokens/verify',{
+            headers:{Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN},
+            signal:AbortSignal.timeout(12000)
+          }).then(r=>r.json()).catch(()=>null);
+          if(tokenCheck?.success!==true || tokenCheck?.result?.status!=='active') fail('Cloudflare API token is unavailable or inactive.');
+          const client=new pg.Client({
+            connectionString:process.env.NEON_DATABASE_URL,
+            ssl:{rejectUnauthorized:true},
+            connectionTimeoutMillis:12000,
+            query_timeout:10000,
+            statement_timeout:10000
+          });
+          try {
+            await client.connect();
+            const result=await client.query('SELECT current_user AS role, current_database() AS db, current_setting(\'transaction_read_only\') AS read_only');
+            if(result.rowCount!==1 || result.rows[0].role!==cfg.vars.EXPECTED_NEON_ROLE || result.rows[0].db!=='neondb') fail('Connected identity/database mismatch.');
+            const cap=await client.query('SELECT rolcreaterole, rolcreatedb, rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user');
+            if(cap.rowCount!==1 || Object.values(cap.rows[0]).some(Boolean)) fail('Worker role has privileged capabilities.');
+            console.log('PASS: QA branch connection authenticates as the restricted Worker role (no secrets printed).');
+          } catch { fail('QA Worker role database connectivity failed; verify the Neon secret/role password and network without logging the URL.'); }
+          finally { await client.end().catch(()=>{}); }
+          console.log('PASS: Cloudflare token active and public Worker routes disabled. This job performed SELECT queries only, with no deployment or migration.');
+          NODE

@@ -15,3 +15,6 @@ dist-qa/
 .wrangler/
 .dev.vars
 .dev.vars.*
+
+# Worker-isolated browser QA artifacts
+dist-qa-test-*/

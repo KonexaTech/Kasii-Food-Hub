@@ -1,59 +1,21 @@
-name: Deploy isolated Neon QA API
+name: Validate private QA candidate (deployment disabled)
 on:
-  push:
-    branches: [feature/qa-api-hardening-20261121]
-    paths:
-      - 'worker/**'
-      - '.github/workflows/deploy-neon-api-qa.yml'
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: kasii-food-hub-api-qa
-  cancel-in-progress: true
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install Worker dependencies
-        working-directory: worker
-        run: npm ci --no-audit --no-fund
-      - name: Run Worker checks
-        working-directory: worker
-        run: npm run check
-      - name: Check deployment credentials (values are never printed)
-        id: credentials
-        shell: bash
-        run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$NEON_DATABASE_URL" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "Both required deployment credentials are available."
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            [ -n "$CLOUDFLARE_API_TOKEN" ] && echo "Cloudflare token: present" || echo "Cloudflare token: MISSING"
-            [ -n "$NEON_DATABASE_URL" ] && echo "Neon database URL: present" || echo "Neon database URL: MISSING"
-            echo "Required repository secrets are unavailable to this workflow. Configure them under Settings > Secrets and variables > Actions > Repository secrets."
-            exit 1
-          fi
-      - name: Explain missing deployment credential
-        if: steps.credentials.outputs.ready != 'true'
-        run: echo 'Worker deployment skipped. Add the missing repository secret shown by the credential check.'
-      - name: Deploy QA Worker
-        if: steps.credentials.outputs.ready == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: 74fdd987dfadfdbb7322d9fc7f705499
-          workingDirectory: worker
-          command: deploy --config wrangler.jsonc --var QA_SOURCE_COMMIT:${{ github.sha }}
-      - name: Configure isolated Neon database credential
-        if: steps.credentials.outputs.ready == 'true'
-        working-directory: worker
-        run: printf '%s' "$NEON_DATABASE_URL" | npx wrangler secret put DATABASE_URL --config wrangler.jsonc
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix worker ci --no-audit --no-fund
+      - run: npm run check
+      - run: npm --prefix worker run check
+      - run: npm run build:qa
+      - run: echo 'Deployment disabled pending reviewed private Pages-to-Worker transport and credentials. No hosted writes.'
