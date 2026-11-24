@@ -48,6 +48,7 @@ test("authenticated checkout rejects malformed payloads before SQL and normalize
     if(sql.startsWith("SELECT id,owner_subject"))return {rows:[{id,owner_subject:"fixture-owner"}]};
     if(sql.startsWith("SELECT id,name,price_cents"))return {rows:[{id,name:"Fixture meal",price_cents:2500}]};
     if(sql.startsWith("INSERT INTO kfh_orders(")){
+      assert.match(sql,/total_cents,test_order,client_request_id\) VALUES\(\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11,true,\$12\)/,"QA checkout always stores a test order regardless of submitted values");
       inserted=params;
       return {rows:[{id,order_number:"TEST-NEW",status:"pending",total_cents:4000}]};
     }
@@ -55,7 +56,7 @@ test("authenticated checkout rejects malformed payloads before SQL and normalize
   }};
   const create=await neonApi(new Request("https://worker.example.test/api/orders",{
     method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},
-    body:JSON.stringify({...valid,fulfillmentType:"delivery",deliveryAddress:"Fixture address",totalCents:1,items:[{itemId:id,quantity:1,priceCents:1}]})
+    body:JSON.stringify({...valid,fulfillmentType:"delivery",deliveryAddress:"Fixture address",test_order:false,totalCents:1,items:[{itemId:id,quantity:1,priceCents:1}]})
   }),{NEON_AUTH_URL:base},async(_,callback)=>callback(createDb));
   assert.equal(create.status,201);
   assert.equal(inserted[8],2500,"menu price comes from the database");
