@@ -1,0 +1,73 @@
+name: Isolated Android staging APK
+on:
+  push:
+    branches: ['qa/kasii-android-device-20261124']
+  pull_request:
+    branches: ['fix/kasii-qa-build-isolation-20261123']
+    paths: ['.github/workflows/android-device-qa.yml']
+permissions:
+  contents: read
+jobs:
+  android:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Validate and build existing QA frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm --prefix worker ci --no-audit --no-fund
+          npm run check
+          npm run build:qa
+      - name: Generate isolated Android wrapper
+        run: |
+          mkdir -p "$RUNNER_TEMP/device-wrapper/www"
+          cd "$RUNNER_TEMP/device-wrapper"
+          cat > package.json <<'JSON'
+          {"name":"device-qa","version":"1.0.0","private":true,"dependencies":{"@capacitor/core":"7.4.3","@capacitor/android":"7.4.3"},"devDependencies":{"@capacitor/cli":"7.4.3"}}
+          JSON
+          cat > capacitor.config.json <<'JSON'
+          {"appId":"za.co.kasiifoodhub.staging","appName":"Kasii Food Hub","webDir":"www","server":{"androidScheme":"https","url":"https://kasii-food-hub-neon-staging.pages.dev/neon-customer.html"}}
+          JSON
+          printf '%s' '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>Private staging requires a network connection. No offline orders are accepted.</body></html>' > www/index.html
+          npm install --ignore-scripts --no-audit --no-fund
+          npx --no-install cap add android
+          npx --no-install cap sync android
+          cd android
+          sed -i 's/minSdkVersion = [0-9][0-9]*/minSdkVersion = 26/' variables.gradle
+          grep -q 'minSdkVersion = 26' variables.gradle
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Verify APK identity, signature and provenance
+        env:
+          EXPECTED_SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
+          mkdir -p device-artifact
+          cp "$RUNNER_TEMP/device-wrapper/android/app/build/outputs/apk/debug/app-debug.apk" device-artifact/Kasii-Food-Hub-staging.apk
+          APK="$(find device-artifact -name '*.apk' -type f)"
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" | tee device-artifact/signature.txt
+          "$BUILD_TOOLS/aapt" dump badging "$APK" > device-artifact/package.txt
+          grep -q "package: name='za.co.kasiifoodhub.staging'" device-artifact/package.txt
+          grep -q "sdkVersion:'26'" device-artifact/package.txt
+          sha256sum "$APK" > device-artifact/sha256.txt
+          printf '%s\n' "$EXPECTED_SOURCE" > device-artifact/source-commit.txt
+          printf '%s\n' 'QA debug build only; physical installation, Access login and live backend NOT VERIFIED. Not for production.' > device-artifact/READ-ME.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kasii-Food-Hub-Android-API26-staging-${{ github.event.pull_request.head.sha || github.sha }}
+          path: device-artifact/
+          if-no-files-found: error
+          retention-days: 14
