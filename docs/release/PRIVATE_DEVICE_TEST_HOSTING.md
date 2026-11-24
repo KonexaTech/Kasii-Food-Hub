@@ -1,0 +1,3 @@
+# Private device-test hosting
+
+Bind the dedicated Pages staging project to the existing private Worker using a service binding named `QA_API` targeting `kasii-food-hub-api-qa`. Keep workers.dev and preview URLs disabled. The Pages proxy uses only this binding for API calls; it never falls back to public HTTP. Configure and verify Cloudflare Access on the primary Pages hostname and every alternate hostname before uploading the source-matched QA build. The API deployment must report the same QA_SOURCE_COMMIT as the build's qa-build.json. Credential configuration and staging migrations require explicit approval. No deployment is performed by this candidate.

@@ -66,7 +66,7 @@ return {
     if(url.pathname==='/qa-health') {
       if(request.method!=='GET') return new Response('Method not allowed',{status:405});
       try {
-        const response=await fetch(API_UPSTREAM+'/api/health',{headers:{accept:'application/json'},cache:'no-store',redirect:'manual'});
+        const response=await env.QA_API.fetch(API_UPSTREAM+'/api/health',{headers:{accept:'application/json'},cache:'no-store',redirect:'manual'});
         const health=await response.json();
         const matched=response.ok&&health.ok===true&&health.backend==='neon'&&health.authConfigured===true&&health.sourceCommit===sourceCommit;
         return Response.json({status:matched?'connected-source-matched':'blocked',sourceCommit,apiSourceCommit:health.sourceCommit||null}, {status:matched?200:503,headers:{'cache-control':'no-store'}});
@@ -75,17 +75,15 @@ return {
     if (url.pathname === "/auth" || url.pathname.startsWith("/auth/"))
       return authProxy(request, url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
+    if(typeof env.QA_API?.fetch!=='function') return Response.json({error:'Private QA API binding unavailable'},{status:503,headers:{'cache-control':'no-store'}});
     const origin = request.headers.get("Origin");
     if (origin && origin !== url.origin)
       return new Response("Origin not allowed", {status:403});
-    const headers = new Headers(request.headers);
-    // API authenticates via a signed JWT, not a website session cookie.
-    headers.delete("cookie");
-    headers.delete("origin");
-    headers.delete("referer");
-    headers.delete("host");
+    // Forward only API request headers; never forward Access tokens or session cookies.
+    const headers = new Headers();
+    for(const key of ['accept','content-type','authorization']){const value=request.headers.get(key);if(value)headers.set(key,value);}
     const upstream = new URL(url.pathname + url.search, API_UPSTREAM);
-    const response = await fetch(upstream, {
+    const response = await env.QA_API.fetch(upstream.href, {
       method: request.method,
       headers,
       body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,

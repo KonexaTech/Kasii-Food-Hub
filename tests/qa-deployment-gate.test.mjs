@@ -1,34 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { spawnSync } from 'node:child_process';
-const workflow = readFileSync(new URL('../.github/workflows/deploy-neon-api-qa.yml', import.meta.url), 'utf8');
-const start = workflow.indexOf('          if [ -n "$CLOUDFLARE_API_TOKEN" ]');
-const end = workflow.indexOf('      - name: Explain missing deployment credential', start);
-assert(start > 0 && end > start);
-const script = workflow.slice(start,end).replace(/^          /gm,'');
-test('QA deployment fails closed for either missing credential without printing credential values', () => {
-  const dir = mkdtempSync(join(tmpdir(),'konexa-qa-gate-'));
-  try {
-    for (const [cf,db] of [['',''],['fixture-cloudflare-secret',''],['','fixture-database-secret'],['fixture-cloudflare-secret','fixture-database-secret']]) {
-      const output = join(dir, 'output-'+Number(Boolean(cf))+Number(Boolean(db)));
-      const result = spawnSync('bash',['-e','-c',script],{env:{...process.env,CLOUDFLARE_API_TOKEN:cf,NEON_DATABASE_URL:db,GITHUB_OUTPUT:output},encoding:'utf8'});
-      const expected = Boolean(cf&&db);
-      assert.equal(result.status,expected?0:1);
-      assert.equal(readFileSync(output,'utf8').includes('ready=true'),expected);
-      assert(!result.stdout.includes('fixture-cloudflare-secret'));
-      assert(!result.stdout.includes('fixture-database-secret'));
-      assert(!result.stderr.includes('fixture-cloudflare-secret'));
-      assert(!result.stderr.includes('fixture-database-secret'));
-    }
-  } finally {rmSync(dir,{recursive:true,force:true});}
+import {readFileSync} from 'node:fs';
+import {assertNeonConnectionTarget} from '../worker/src/neon-host.js';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const config=JSON.parse(read('worker/wrangler.jsonc'));
+test('private release candidate cannot be automatically deployed or expose alternate routes',()=>{
+ const workflow=read('.github/workflows/deploy-neon-api-qa.yml');
+ assert.match(workflow,/^  workflow_dispatch:/m);assert.doesNotMatch(workflow,/^  (push|pull_request|schedule):/m);
+ assert.doesNotMatch(workflow,/wrangler-action|wrangler\s+(deploy|secret)|CLOUDFLARE_API_TOKEN|NEON_DATABASE_URL/);
+ assert.equal(config.workers_dev,false);assert.equal(config.preview_urls,false);
+ assert.equal(config.vars.EXPECTED_NEON_ROLE,'kfh_worker');
+ for(const key of ['DELIVERY_CALLBACKS_ENABLED','DELIVERY_DISPATCH_ENABLED','DELIVERY_SOURCE_LOOKUP_ENABLED'])assert.equal(config.vars[key],'false');
 });
-test('QA deployment retains locked dependencies and only configures the existing isolated Worker', () => {
-  assert.match(workflow,/npm ci --no-audit --no-fund/);
-  assert.match(workflow,/steps\.credentials\.outputs\.ready == 'true'/);
-  assert.match(workflow,/secret put DATABASE_URL --config wrangler\.jsonc/);
-  assert.match(workflow,/branches: \[feature\/qa-api-hardening-20261121\]/);
-  assert.doesNotMatch(workflow,/branches:.*main/);
+test('runtime connection guard refuses owner and unrelated branches before connecting',()=>{
+ const host=config.vars.EXPECTED_NEON_HOST;const role=config.vars.EXPECTED_NEON_ROLE;
+ assert.equal(assertNeonConnectionTarget('postgresql://'+role+':fixture@'+host+'/neondb',host,role),true);
+ assert.throws(()=>assertNeonConnectionTarget('postgresql://neondb_owner:fixture@'+host+'/neondb',host,role));
+ assert.throws(()=>assertNeonConnectionTarget('postgresql://'+role+':fixture@other.example/neondb',host,role));
+ const source=read('worker/src/index.js');assert.match(source,/assertNeonConnectionTarget\(connectionString, env.EXPECTED_NEON_HOST, env.EXPECTED_NEON_ROLE\)/);
+});
+test('credential probe is manual and read-only with no deployment commands',()=>{
+ const probe=read('.github/workflows/qa-role-connectivity.yml');assert.match(probe,/^  workflow_dispatch:/m);assert.doesNotMatch(probe,/^  (push|pull_request|schedule):/m);
+ assert.match(probe,/current_user AS role/);assert.match(probe,/rolbypassrls/);assert.doesNotMatch(probe,/wrangler-action|wrangler\s+(deploy|secret)/);
 });
