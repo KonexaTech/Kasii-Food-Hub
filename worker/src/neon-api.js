@@ -32,8 +32,25 @@ export async function neonApi(request,env,withDb){
   const ownItem=/^\/api\/owner\/shops\/([0-9a-f-]{36})\/menu\/([0-9a-f-]{36})$/.exec(path);
   if(method==="PATCH"&&ownItem&&uuid.test(ownItem[1])&&uuid.test(ownItem[2])){const d=await readBody(request);if(!d||typeof d.name!=="string"||!d.name.trim()||d.name.length>160||!Number.isInteger(d.priceCents)||d.priceCents<1||d.priceCents>10000000||typeof d.available!=="boolean")return json({error:"Invalid menu update"},400);const result=await withDb(env,async db=>db.query("UPDATE kfh_menu_items m SET name=$4,price_cents=$5,available=$6 FROM kfh_shops s WHERE m.id=$3 AND m.shop_id=s.id AND s.id=$1 AND s.owner_subject=$2 AND s.approved=true RETURNING m.id,m.name,m.price_cents,m.available",[ownItem[1],subject,ownItem[2],d.name.trim(),d.priceCents,d.available]));return result.rowCount?json({item:result.rows[0]}):json({error:"Menu item not found"},404)}
   if(method==="GET"&&path==="/api/owner/orders")return json({orders:await withDb(env,async db=>(await db.query("SELECT o.id,o.order_number,o.shop_id,o.status,o.customer_name,o.area,o.fulfillment_type,o.total_cents,o.created_at FROM kfh_orders o JOIN kfh_shops s ON s.id=o.shop_id WHERE s.owner_subject=$1 ORDER BY o.created_at DESC LIMIT 100",[subject])).rows)});
+  if(method==="GET"&&path==="/api/admin/overview"){
+    if(!await isNeonAdmin(env,withDb,subject))return json({error:"Admin access required"},403);
+    return json(await withDb(env,async db=>{
+      const totals=(await db.query("SELECT count(*)::int AS total, count(*) FILTER (WHERE approved=true)::int AS approved FROM kfh_shops")).rows[0];
+      const applications=(await db.query("SELECT status,count(*)::int AS count FROM kfh_shop_applications GROUP BY status")).rows;
+      const orderStatuses=(await db.query("SELECT status,count(*)::int AS count FROM kfh_orders GROUP BY status")).rows;
+      return {shopCount:Number(totals.total)||0,approvedShopCount:Number(totals.approved)||0,applications,orderStatuses,commissionPaused:true,estimatedCommissionCents:null,collectedCommissionCents:null,commissionCollectionStatus:"Commission collection disabled. These operational counts are not commission-eligible totals."};
+    }));
+  }
   if(method==="GET"&&path==="/api/admin/orders"){if(!await isNeonAdmin(env,withDb,subject))return json({error:"Admin access required"},403);return json({orders:await withDb(env,async db=>(await db.query("SELECT o.id,o.order_number,o.shop_id,s.name AS shop_name,o.status,o.created_at,o.total_cents FROM kfh_orders o JOIN kfh_shops s ON s.id=o.shop_id ORDER BY o.created_at DESC LIMIT 200")).rows)})}
   if(method==="GET"&&path==="/api/notifications")return json({notifications:await withDb(env,async db=>(await db.query("SELECT id,order_id,kind,title,body,read_at,created_at FROM kfh_notifications WHERE recipient_subject=$1 ORDER BY created_at DESC LIMIT 100",[subject])).rows)});
+  // One recipient-scoped update; the signed session, not client input, determines ownership.
+  if(method==="PATCH"&&path==="/api/notifications/read-all"){
+    const result=await withDb(env,async db=>db.query(
+      "WITH marked AS (UPDATE kfh_notifications SET read_at=now() WHERE recipient_subject=$1 AND read_at IS NULL RETURNING 1) SELECT count(*)::int AS updated FROM marked",
+      [subject]
+    ));
+    return json({ok:true,updated:Number(result.rows?.[0]?.updated)||0});
+  }
   const readNotification=/^\/api\/notifications\/([0-9a-f-]{36})\/read$/.exec(path);
   if(method==="PATCH"&&readNotification&&uuid.test(readNotification[1])){const result=await withDb(env,async db=>db.query("UPDATE kfh_notifications SET read_at=COALESCE(read_at,now()) WHERE id=$1 AND recipient_subject=$2 RETURNING id",[readNotification[1],subject]));return result.rowCount?json({ok:true}):json({error:"Notification not found"},404)}
   if(method==="POST"&&path==="/api/shop-applications"){const d=await readBody(request);if(!d||typeof d.ownerName!=="string"||d.ownerName.trim().length<2||d.ownerName.length>120||typeof d.shopName!=="string"||d.shopName.trim().length<2||d.shopName.length>160||typeof d.phone!=="string"||!d.phone.trim()||d.phone.length>30||typeof d.area!=="string"||!d.area.trim()||d.area.length>160||typeof d.address!=="string"||!d.address.trim()||d.address.length>300||typeof(d.description||"")!=="string"||String(d.description||"").length>2000)return json({error:"Invalid shop application"},400);const result=await withDb(env,async db=>db.query("INSERT INTO kfh_shop_applications(applicant_subject,owner_name,shop_name,phone,area,address,description) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,status,created_at",[subject,d.ownerName.trim(),d.shopName.trim(),d.phone.trim(),d.area.trim(),d.address.trim(),d.description||""]));return json({application:result.rows[0]},201)}

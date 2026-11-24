@@ -102,6 +102,8 @@ bind("applications",async()=>out(await api("/api/admin/shop-applications")));
 bind("approve",async()=>out(await api("/api/admin/shop-applications/"+encodeURIComponent(required("applicationId","Application ID"))+"/review","PATCH",{status:"approved"})));
 bind("reject",async()=>out(await api("/api/admin/shop-applications/"+encodeURIComponent(required("applicationId","Application ID"))+"/review","PATCH",{status:"rejected"})));
 bind("orders",async()=>out(await api("/api/admin/orders")));
+bind("adminOverview",async()=>out(await api("/api/admin/overview")));
+bind("markAllRead",async()=>{const r=await api("/api/notifications/read-all","PATCH");out("Marked "+r.updated+" notifications as read.");await pollNotifications()});
 }
 bind("notifications",async()=>out(await api("/api/notifications")));
 bind("markRead",async()=>out(await api("/api/notifications/"+encodeURIComponent(required("notificationId","Notification ID"))+"/read","PATCH")));
